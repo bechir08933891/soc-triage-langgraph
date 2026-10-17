@@ -37,3 +37,8 @@ desktop.ini
 
 # === My personal scratch file for experiments ===
 playground.py
+
+# === The downloaded dataset ===
+# Anyone can re-download it with `python download_data.py`, so there is no
+# reason to upload it. Large data files also make a repository slow to clone.
+data/wazuh_formatted_alerts.json
