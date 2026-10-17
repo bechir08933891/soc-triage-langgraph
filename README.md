@@ -27,7 +27,8 @@ what every agent is doing, which tools it calls, and what it costs.
 - [x] Step 4 — The Alert contract (input validation)
 - [x] Step 5 — Closed vocabularies and the Triage contract
 - [x] Step 6 — All five agent contracts complete
-- [ ] Step 7 — The shared memory (SOCState)
+- [x] Step 7 — The shared memory (SOCState) with reducers
+- [ ] Step 8 — The triage logic
 
 ## Installation
 

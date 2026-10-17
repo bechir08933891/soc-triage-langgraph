@@ -21,3 +21,13 @@ python-dotenv>=1.0
 
 # --- Runs our automatic tests, to prove the code works ---
 pytest>=8.3
+
+# --- A2A: lets our agents talk over a real open protocol ---
+# a2a-sdk is the official SDK. [http-server] adds the web-server parts.
+a2a-sdk[http-server]>=1.2,<2.0
+
+# The web server that will host our agents.
+uvicorn>=0.30
+
+# The HTTP client our graph uses to call them.
+httpx>=0.27
