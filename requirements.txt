@@ -1,0 +1,23 @@
+# requirements.txt
+# This file is the shopping list of every library this project needs.
+# Anyone (including your jury) can rebuild your exact setup with one command.
+# ">=" means "this version or newer". "<" means "but not this one or later",
+# which protects us from a future update that breaks our code.
+
+# --- The agent framework: builds the state machine of our 5 agents ---
+langgraph>=1.2,<2.0
+
+# --- Saves the state of the graph into a small database file on disk ---
+langgraph-checkpoint-sqlite>=3.0
+
+# --- Checks that our data has the right shape. Our "quality control" layer ---
+pydantic>=2.9,<3.0
+
+# --- Reads settings (like the model name) from a config file ---
+pydantic-settings>=2.4
+
+# --- Reads secret keys from the .env file (your OpenAI key goes there) ---
+python-dotenv>=1.0
+
+# --- Runs our automatic tests, to prove the code works ---
+pytest>=8.3
