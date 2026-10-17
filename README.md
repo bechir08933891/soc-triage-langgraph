@@ -25,7 +25,8 @@ what every agent is doing, which tools it calls, and what it costs.
 - [x] Step 2 — Project and dependencies installed
 - [x] Step 3 — Connected to GitHub
 - [x] Step 4 — The Alert contract (input validation)
-- [ ] Step 5 — The agent output contracts
+- [x] Step 5 — Closed vocabularies and the Triage contract
+- [ ] Step 6 — The remaining agent contracts
 
 ## Installation
 
