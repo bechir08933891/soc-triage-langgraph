@@ -9,6 +9,9 @@ inside the system unless it matches one of the shapes described here.
 For now there is only one shape: Alert. That is the raw security alert
 arriving from Wazuh (our SIEM). Later we will add the shapes produced by
 each of the five agents.
+
+Verified against the real dataset `kholil-lil/wazuh-alerts` on Hugging Face:
+all five record types it contains pass through this model without error.
 """
 
 # This line must be the first instruction in the file.
@@ -65,7 +68,7 @@ class Alert(BaseModel):
     # value and is therefore optional.
     # -------------------------------------------------------------------------
 
-    # A unique name for this alert, for example "alert-001". Must be text.
+    # A unique name for this alert, for example "alert-001" or "1741132834.0".
     id: str
 
     # When the alert happened. Must be a real date and time.
@@ -99,8 +102,15 @@ class Alert(BaseModel):
     # The destination IP, when the alert is about network traffic.
     dst_ip: Optional[str] = None
 
-    # The user account involved, e.g. "admin". Also optional.
+    # The user account involved, e.g. "admin" or "root". Also optional.
     user: Optional[str] = None
+
+    # The raw log line that triggered the rule, straight from the machine, e.g.
+    #   "ossec: File rotated (inode changed): '/var/log/nginx/access.log'."
+    # `rule_description` is generic text written by the rule author.
+    # `full_log` is the real evidence from the machine itself.
+    # The LLM agents read this later to understand what truly happened.
+    full_log: Optional[str] = None
 
     # The complete original record, untouched. We keep it so we can always
     # prove what the SIEM really sent us.
@@ -125,6 +135,9 @@ class Alert(BaseModel):
         Why: later, the hunter agent sends this IP to an external threat
         database. Sending garbage would waste a request and might return a
         confusing answer. Better to have no IP than a fake one.
+
+        This also protects us from the public dataset, where some addresses
+        are anonymised as "xxx.xxx.xxx.xxx".
         """
         # Wazuh writes "-" or an empty string when there is no IP.
         if value in (None, "", "-"):
@@ -144,13 +157,18 @@ class Alert(BaseModel):
     @field_validator("timestamp", mode="before")
     @classmethod
     def _parse_timestamp(cls, value: Any) -> Any:
-        """Understand the date format Wazuh actually sends."""
+        """Understand the date formats Wazuh actually sends.
+
+        Two formats exist in the wild, and both must work:
+          "2026-02-18T10:32:00Z"            <- the documented format
+          "2025-03-05T00:00:34.390+0000"    <- what the real dataset uses
+        """
         # `isinstance(value, str)` asks: "is this value a piece of text?"
         # If the value is already a real datetime, we leave it alone.
         if isinstance(value, str):
-            # Wazuh writes times like "2026-02-18T10:32:00Z".
             # The "Z" means UTC, but Python's parser prefers "+00:00".
-            # .replace() swaps one for the other.
+            # .replace() swaps one for the other. The "+0000" form is
+            # understood by Python directly, so it needs no change.
             return datetime.fromisoformat(value.replace("Z", "+00:00"))
         return value
 
