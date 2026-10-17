@@ -28,7 +28,8 @@ what every agent is doing, which tools it calls, and what it costs.
 - [x] Step 5 — Closed vocabularies and the Triage contract
 - [x] Step 6 — All five agent contracts complete
 - [x] Step 7 — The shared memory (SOCState) with reducers
-- [ ] Step 8 — The triage logic
+- [x] Step 8 — Deterministic triage logic
+- [ ] Step 9 — Turn triage into an A2A agent
 
 ## Installation
 
