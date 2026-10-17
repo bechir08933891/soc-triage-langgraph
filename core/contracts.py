@@ -69,7 +69,8 @@ class AttackType(str, Enum):
     WEB_ATTACK = "WebAttack"                     # attacking a website
     PERSISTENCE = "Persistence"                  # staying in after being kicked out
     POLICY_VIOLATION = "PolicyViolation"         # breaking a company rule
-
+    VULNERABILITY = "Vulnerability"              # a CVE found or fixed. Not an attack.
+    NORMAL_ACTIVITY = "NormalActivity"           # successful login, closed session. Normal.
     # Always provide an honest escape hatch. Without UNKNOWN, the agent would
     # be forced to guess a wrong category, which is worse than admitting doubt.
     UNKNOWN = "Unknown"

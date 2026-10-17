@@ -110,6 +110,13 @@ therefore never fire on this corpus. It is used for format fidelity and
 distribution analysis; the live demonstration uses a curated scenario, and
 this is stated explicitly rather than hidden.
 
+**4. Unwrapping the active-response records recovers hidden evidence.**
+Reading the nested alert at `data.parameters.alert` raises the number of
+alerts carrying a real source IP from 645 to 691, and replaces the
+anonymised host name `xxx` with the real one (`prod-server`) on 466 records.
+Classification coverage rises from 96.5% to 99.6%, and no alert description
+is classified inconsistently any more.
+
 ---
 
 ## Design decisions

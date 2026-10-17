@@ -3,25 +3,19 @@ core/preprocessor.py
 ====================
 Turn the real Wazuh dataset into validated Alert objects.
 
-Real data is messy. The same idea appears as `rule.level`, `rule_level` or
-`level` depending on who exported it. IP addresses arrive as "-". Some
-records are wrapped inside other records.
+Two layers of wrapping have to be removed before we see a real alert:
 
-All of that mess is handled HERE, at the entrance. Everything downstream can
-then assume it is holding a clean, validated Alert.
+  LAYER 1 - the training format
+      {"instruction": "...", "input": "<the alert as JSON TEXT>", "output": "True Positive"}
 
-About this dataset specifically: it is published as an AI TRAINING file, so
-each row looks like this:
+  LAYER 2 - the active-response wrapper (63% of this dataset!)
+      When Wazuh's firewall blocks an attacker, it writes a NEW alert about
+      its own action. The alert that CAUSED the block is buried at
+          data -> parameters -> alert
+      That inner alert holds the real host name, the real attacker IP and
+      the real description. The outer record is just bookkeeping.
 
-    {
-      "instruction": "Classify the following Wazuh alert...",
-      "input":       "{ ...the real alert, as JSON TEXT... }",
-      "output":      "True Positive"
-    }
-
-The alert we want is hidden inside `input` as a string. We unwrap it, and we
-keep `output` as `_label`, because that label is a ground truth we will use
-later to measure how accurate our agent really is.
+We unwrap both, and we record that we did, so nothing is hidden.
 """
 
 from __future__ import annotations
@@ -35,20 +29,13 @@ from pydantic import ValidationError
 
 from core.models import Alert
 
-# A logger lets us record warnings without printing noise into the demo.
 logger = logging.getLogger(__name__)
 
-
-# The single source file of the dataset, straight from Hugging Face.
-# "resolve/main/" is the part of the address that serves the raw file.
 DATASET_URL = (
     "https://huggingface.co/datasets/kholil-lil/wazuh-alerts/"
     "resolve/main/wazuh_formatted_alerts.json"
 )
 
-# Where it will live on your computer.
-# `Path(__file__)` is this file. `.resolve()` makes it a full address.
-# `.parent.parent` goes up twice: core/ -> the project folder.
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DATASET_FILE = DATA_DIR / "wazuh_formatted_alerts.json"
 
@@ -63,14 +50,9 @@ def download_dataset(
     destination: Path = DATASET_FILE,
     force: bool = False,
 ) -> Path:
-    """Download the complete dataset file, showing progress.
+    """Download the complete dataset file, showing progress."""
+    import httpx
 
-    `force=False` means: if the file is already here, do not download again.
-    """
-    import httpx  # imported here so the rest of the file works without network
-
-    # `parents=True` creates the data folder if it is missing.
-    # `exist_ok=True` means "do not complain if it already exists".
     destination.parent.mkdir(parents=True, exist_ok=True)
 
     if destination.exists() and not force:
@@ -79,33 +61,19 @@ def download_dataset(
         return destination
 
     print(f"Downloading {url}")
-
-    # `stream` downloads in small pieces instead of loading everything into
-    # memory at once. That matters on a machine with 8 GB of RAM.
     with httpx.stream("GET", url, follow_redirects=True, timeout=120) as response:
-        # Raises an error if the server answered with a failure code.
         response.raise_for_status()
-
-        # The server usually tells us the total size, so we can show a percentage.
         total = int(response.headers.get("content-length", 0))
         done = 0
-
-        # `"wb"` means "write, binary" — we write raw bytes, not text.
         with destination.open("wb") as handle:
             for chunk in response.iter_bytes(chunk_size=65536):
                 handle.write(chunk)
                 done += len(chunk)
-                # `\r` returns to the start of the line, so the progress
-                # updates in place instead of printing hundreds of lines.
                 if total:
-                    print(
-                        f"\r  {done/1_000_000:6.2f} / {total/1_000_000:6.2f} MB "
-                        f"({done*100//total:3d}%)",
-                        end="",
-                    )
+                    print(f"\r  {done/1_000_000:6.2f} / {total/1_000_000:6.2f} MB "
+                          f"({done*100//total:3d}%)", end="")
                 else:
                     print(f"\r  {done/1_000_000:6.2f} MB", end="")
-
     print(f"\nSaved to {destination}")
     return destination
 
@@ -116,30 +84,85 @@ def download_dataset(
 
 
 def _read_json_file(path: Path) -> Any:
-    """Read the file, accepting either real JSON or JSON-lines.
-
-    JSON        : one big [ ... ] or { ... } covering the whole file
-    JSON-lines  : one complete JSON object per line
-    Both appear in the wild, so we accept both.
-    """
+    """Read the file, accepting either real JSON or JSON-lines."""
     text = path.read_text(encoding="utf-8").strip()
-
     if text.startswith("[") or text.startswith("{"):
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            # It looked like JSON but was not. Fall through to JSON-lines.
             pass
-
     return [json.loads(line) for line in text.splitlines() if line.strip()]
 
 
-def _unwrap_record(record: dict) -> dict | None:
-    """Find the real alert inside a training-format record.
+# =============================================================================
+# LAYER 2 - THE ACTIVE-RESPONSE WRAPPER
+# =============================================================================
 
-    Returns the alert dictionary, or None if this record holds no alert.
+
+def _extract_trigger(alert: dict) -> dict | None:
+    """Return the alert hidden inside an active-response record, or None.
+
+    The path is data -> parameters -> alert. We check each step is really a
+    dictionary before going deeper, because real data is unreliable and a
+    missing key would otherwise crash the whole load.
     """
-    # The alert may hide under any of these keys, as text or as an object.
+    data = alert.get("data")
+    if not isinstance(data, dict):
+        return None
+
+    parameters = data.get("parameters")
+    if not isinstance(parameters, dict):
+        return None
+
+    inner = parameters.get("alert")
+    return inner if isinstance(inner, dict) else None
+
+
+def _enrich_with_trigger(alert: dict) -> dict:
+    """Copy the real evidence out of a nested trigger alert into the wrapper.
+
+    We do NOT replace the outer alert. Wazuh really did produce it, and
+    deleting it would falsify the record. Instead we ATTACH what we found,
+    under names starting with an underscore so it is obvious these came from
+    us and not from the SIEM.
+
+    What this recovers: the outer record says host "xxx" (anonymised). The
+    inner one says "prod-server" with IP 103.129.149.63. Real evidence.
+    """
+    trigger = _extract_trigger(alert)
+    if trigger is None:
+        return alert
+
+    trigger_rule = trigger.get("rule", {})
+    trigger_agent = trigger.get("agent", {})
+    trigger_data = trigger.get("data", {})
+
+    alert["_trigger_description"] = trigger_rule.get("description")
+    alert["_trigger_level"] = trigger_rule.get("level")
+    alert["_trigger_rule_id"] = trigger_rule.get("id")
+    alert["_trigger_groups"] = trigger_rule.get("groups", [])
+    alert["_trigger_host"] = trigger_agent.get("name")
+    alert["_trigger_srcip"] = (
+        trigger_data.get("srcip") if isinstance(trigger_data, dict) else None
+    )
+    alert["_trigger_full_log"] = trigger.get("full_log")
+
+    # "add" means the firewall blocked the attacker.
+    # "delete" means the block was lifted afterwards.
+    data = alert.get("data")
+    if isinstance(data, dict):
+        alert["_response_command"] = data.get("command")
+
+    return alert
+
+
+# =============================================================================
+# LAYER 1 - THE TRAINING FORMAT
+# =============================================================================
+
+
+def _unwrap_record(record: dict) -> dict | None:
+    """Find the real alert inside a training-format record."""
     for key in ("input", "alert", "text"):
         value = record.get(key)
 
@@ -150,23 +173,21 @@ def _unwrap_record(record: dict) -> dict | None:
             except json.JSONDecodeError:
                 continue
             if isinstance(inner, dict):
-                # Keep the ground-truth label. We will measure against it later.
-                # The underscore marks it as something WE added, not Wazuh.
                 if "output" in record:
                     inner["_label"] = record["output"]
                 if "instruction" in record:
                     inner["_instruction"] = record["instruction"]
-                return inner
+                return _enrich_with_trigger(inner)
 
         # Case 2: the alert is already a real object.
         if isinstance(value, dict):
             if "output" in record:
                 value["_label"] = record["output"]
-            return value
+            return _enrich_with_trigger(value)
 
     # Case 3: the record IS the alert, with nothing wrapped around it.
     if "rule" in record or "rule_level" in record or "rule_id" in record:
-        return record
+        return _enrich_with_trigger(record)
 
     return None
 
@@ -180,15 +201,12 @@ def load_raw_records(path: Path = DATASET_FILE) -> list[dict]:
 
     payload = _read_json_file(path)
 
-    # Some files wrap the list inside an object, e.g. {"data": [ ... ]}.
     if isinstance(payload, dict):
         for key in ("data", "alerts", "records", "rows", "train"):
             if isinstance(payload.get(key), list):
                 payload = payload[key]
                 break
         else:
-            # `else` on a `for` loop runs only if we never hit `break`.
-            # So: no known key found, treat the object itself as one record.
             payload = [payload]
 
     records: list[dict] = []
@@ -207,12 +225,7 @@ def load_raw_records(path: Path = DATASET_FILE) -> list[dict]:
 
 
 def _dig(raw: dict, *candidates: str, default: Any = None) -> Any:
-    """Return the first value found among several dotted-path candidates.
-
-    `_dig(raw, "rule.level", "rule_level", "level")` tries three spellings
-    and returns the first that exists. This is what lets one function handle
-    every export format without a pile of if-statements.
-    """
+    """Return the first value found among several dotted-path candidates."""
     for path in candidates:
         cursor: Any = raw
         for part in path.split("."):
@@ -225,7 +238,11 @@ def _dig(raw: dict, *candidates: str, default: Any = None) -> Any:
 
 
 def _as_int(value: Any, default: int = 0) -> int:
-    """Turn a value into a whole number, or use the default if impossible."""
+    """Turn a value into a whole number, or use the default if impossible.
+
+    Needed because the nested alerts store the level as TEXT ("5"), while
+    the outer ones store it as a number (5). Both must work.
+    """
     try:
         return int(str(value).strip())
     except (TypeError, ValueError):
@@ -235,13 +252,11 @@ def _as_int(value: Any, default: int = 0) -> int:
 def normalize_wazuh_alert(raw: dict, fallback_id: str | None = None) -> Alert:
     """Turn one raw record into a validated Alert.
 
-    Raises ValidationError if the record cannot be made valid. The caller
-    decides whether to skip it. Silently inventing values would poison the
-    audit trail, so we never do that.
+    Notice the `_trigger_*` names FIRST in three of the lookups below. That
+    is the priority rule: if we recovered real evidence from a nested alert,
+    prefer it over the anonymised outer value.
     """
     level = _as_int(_dig(raw, "rule.level", "rule_level", "level"), default=0)
-    # Wazuh guarantees 0-15. We clamp, so hostile or broken input cannot
-    # crash the pipeline further down.
     level = max(0, min(15, level))
 
     return Alert(
@@ -253,26 +268,26 @@ def normalize_wazuh_alert(raw: dict, fallback_id: str | None = None) -> Alert:
             _dig(raw, "rule.description", "rule_description", "description",
                  default="(no description)")
         ),
+        # Prefer the REAL host name recovered from the nested alert.
         agent_name=str(
-            _dig(raw, "agent.name", "agent_name", "host", default="unknown-host")
+            _dig(raw, "_trigger_host", "agent.name", "agent_name", "host",
+                 default="unknown-host")
         ),
         agent_id=str(_dig(raw, "agent.id", "agent_id", default="000")),
-        src_ip=_dig(raw, "data.srcip", "srcip", "src_ip", "source_ip"),
+        # Prefer the REAL attacker IP recovered from the nested alert.
+        src_ip=_dig(raw, "_trigger_srcip", "data.srcip", "srcip", "src_ip",
+                    "source_ip"),
         dst_ip=_dig(raw, "data.dstip", "dstip", "dst_ip"),
-        # This dataset uses `srcuser`; other exports use `dstuser`. Try both.
         user=_dig(raw, "data.srcuser", "data.dstuser", "data.user",
                   "srcuser", "dstuser", "user"),
-        full_log=_dig(raw, "full_log", "log", "message"),
+        # Prefer the REAL log line from the nested alert.
+        full_log=_dig(raw, "_trigger_full_log", "full_log", "log", "message"),
         raw=raw,
     )
 
 
 def normalize_many(records: Iterable[dict]) -> tuple[list[Alert], list[str]]:
-    """Normalise a batch. Returns (the good alerts, notes about the bad ones).
-
-    We never throw away a failure silently. Returning the problems means you
-    can report honestly: "2,847 of 2,851 records loaded; 4 were malformed."
-    """
+    """Normalise a batch. Returns (the good alerts, notes about the bad ones)."""
     alerts: list[Alert] = []
     skipped: list[str] = []
     for index, record in enumerate(records):
@@ -290,6 +305,5 @@ def load_alerts(path: Path = DATASET_FILE, limit: int | None = None) -> list[Ale
     alerts, skipped = normalize_many(load_raw_records(path))
     if skipped:
         logger.warning("Skipped %d malformed records", len(skipped))
-    # Sort by time, because the forensics agent later needs a real timeline.
     alerts.sort(key=lambda alert: alert.timestamp)
     return alerts[:limit] if limit else alerts

@@ -1,20 +1,26 @@
 """
 tools/severity.py
 =================
-The triage logic: turn one Alert into one TriageResult.
+The triage logic: turn one Alert into one TriageResult. No AI, by design.
 
-NO artificial intelligence is used here, and that is deliberate.
+This version was CORRECTED using evidence from the real dataset. Three
+changes, each driven by something the data showed us:
 
-A severity decision must be REPRODUCIBLE. If the same alert can produce
-"High" today and "Medium" tomorrow, the whole audit trail is worthless, and
-a jury can destroy the project with one question. Fixed rules give the same
-answer forever, and every clue that fired is written down in the result.
+  1. We no longer search `full_log`.
+     It is free text, and it caused the same description to be classified
+     two different ways depending on which words happened to appear.
+     We search the description and Wazuh's own curated rule GROUPS instead.
+     Groups like ["syslog", "sshd", "authentication_failed"] are written by
+     the rule author, not by chance.
 
-How the decision is made:
-    1. WHAT kind of attack?  -> match keywords in the alert text
-    2. HOW serious?          -> read the Wazuh level (0-15)
-    3. Adjust the score      -> external IP? privileged account?
-    4. Escalate or not?      -> Critical and High go to a human
+  2. Precise phrases instead of bare words.
+     "root" used to match "PAM: Login session opened for root", which is
+     normal activity, not privilege escalation. Now we require
+     "successful sudo to root".
+
+  3. Two honest non-threat categories.
+     A successful login and a fixed CVE are not attacks. Forcing them into
+     an attack family would make the system confidently wrong.
 """
 
 from __future__ import annotations
@@ -24,65 +30,70 @@ from core.models import Alert
 
 
 # =============================================================================
-# THE POLICY — all the thresholds live here, at the top, in one place
-#
-# Why at the top: during your defense someone will ask "where does the
-# High threshold come from?". You scroll to line 30 and point. If these
-# numbers were scattered through the code you could not answer cleanly.
+# THE POLICY - every threshold in one place, at the top
 # =============================================================================
 
-# Wazuh grades alerts 0-15. These are the boundaries between severity bands.
-LEVEL_CRITICAL = 12   # 12, 13, 14, 15  -> Critical
-LEVEL_HIGH = 10       # 10, 11          -> High
-LEVEL_MEDIUM = 7      # 7, 8, 9         -> Medium
-LEVEL_LOW = 4         # 4, 5, 6         -> Low
-#                       0, 1, 2, 3      -> Info
+LEVEL_CRITICAL = 12   # 12-15 -> Critical
+LEVEL_HIGH = 10       # 10-11 -> High
+LEVEL_MEDIUM = 7      # 7-9   -> Medium
+LEVEL_LOW = 4         # 4-6   -> Low
+#                       0-3   -> Info
 
 
-# The keyword table: which words mean which kind of attack.
+# ORDER MATTERS: the first match wins.
 #
-# This is a LIST OF PAIRS. Each pair is (attack type, the words that signal it).
-# Order matters — the first match wins — so the most specific families come
-# first and the vaguest come last.
-#
-# Why a table instead of a long chain of if-statements: you can add a new
-# attack family by adding one line, with no logic to rewrite. A jury can read
-# the whole classification policy in twenty seconds.
+# The two non-threat families come FIRST on purpose. "sshd: authentication
+# success" contains the word "authentication", which would otherwise be
+# caught by the brute-force family. Checking "is this normal?" before
+# "is this an attack?" prevents that mistake.
 ATTACK_KEYWORDS: list[tuple[AttackType, tuple[str, ...]]] = [
+    (AttackType.NORMAL_ACTIVITY, (
+        "authentication success", "login session opened", "login session closed",
+        "session opened", "session closed", "log file rotated", "logon success",
+        "connection reset", "database update",
+    )),
+    (AttackType.VULNERABILITY, (
+        "cve-", "vulnerability", "was solved", "package upgrade",
+    )),
     (AttackType.BRUTE_FORCE, (
-        "brute force", "authentication failure", "failed login",
+        "brute force", "authentication failure", "failed login", "login failed",
         "non-existent user", "multiple failed", "missed the password",
-        "login failed", "invalid user",
+        "invalid user",
+        # These two are Wazuh GROUP names, not description words. Groups are
+        # curated by the rule author, so they are a very reliable signal.
+        "authentication_failed", "authentication_failures",
     )),
     (AttackType.MALWARE, (
-        "malware", "virus", "trojan", "ransomware", "quarantine",
-        "malicious file", "antivirus",
-    )),
-    (AttackType.PRIVILEGE_ESCALATION, (
-        "sudo", "privilege", "root", "administrator", "setuid", "elevation",
-    )),
-    (AttackType.DATA_EXFILTRATION, (
-        "exfiltration", "large outbound", "data transfer", "upload to external",
-    )),
-    (AttackType.WEB_ATTACK, (
-        "sql injection", "xss", "web server", "400 error", "404",
-        "wp-login", "shellshock", "web attack",
+        "malware", "virus detected", "trojan", "ransomware", "quarantine",
+        "malicious file",
     )),
     (AttackType.PERSISTENCE, (
-        "rootkit", "hidden process", "scheduled task", "cron",
-        "backdoor", "rootcheck", "persistence",
+        # A changed crontab is how an attacker survives a reboot.
+        "crontab", "scheduled task", "rootkit", "hidden process",
+        "backdoor", "rootcheck",
+    )),
+    (AttackType.PRIVILEGE_ESCALATION, (
+        # Full phrases only. A bare "root" or "sudo" matched normal logins.
+        "successful sudo to root", "sudo to root", "privilege escalation",
+        "setuid", "added to group root", "su to root",
+    )),
+    (AttackType.DATA_EXFILTRATION, (
+        "exfiltration", "large outbound", "upload to external",
+    )),
+    (AttackType.WEB_ATTACK, (
+        "sql injection", "shellshock", "wp-login", "web server 400",
+        "web server 500", "web server 403", "xss",
+        "web_scan", "accesslog",   # Wazuh group names
     )),
     (AttackType.RECONNAISSANCE, (
-        "scan", "port scan", "probe", "enumeration", "nmap",
+        "port scan", "nmap", "enumeration", "probe",
     )),
     (AttackType.POLICY_VIOLATION, (
-        "policy", "integrity checksum", "file rotated", "configuration changed",
+        "integrity checksum", "configuration changed", "policy violation",
     )),
 ]
 
 
-# The severity bands, highest first. We walk this list and take the first
-# band the alert reaches.
 SEVERITY_BY_BAND: list[tuple[int, Severity]] = [
     (LEVEL_CRITICAL, Severity.CRITICAL),
     (LEVEL_HIGH, Severity.HIGH),
@@ -91,117 +102,116 @@ SEVERITY_BY_BAND: list[tuple[int, Severity]] = [
 ]
 
 
+# Events that are not attacks. They are always forced down to Info.
+# A set (curly braces) is the fastest way to ask "is it one of these?".
+NON_THREATS = {AttackType.NORMAL_ACTIVITY, AttackType.VULNERABILITY}
+
+
 # =============================================================================
-# STEP 1 — WHAT KIND OF ATTACK?
+# STEP 1 - WHAT KIND OF ATTACK?
 # =============================================================================
+
+
+def _classification_text(alert: Alert) -> str:
+    """Build the text we search, from TRUSTED fields only.
+
+    Four sources, all curated by Wazuh or recovered deliberately by us:
+      1. the rule description
+      2. the Wazuh rule groups
+      3. the description of the alert that triggered an active response
+      4. that trigger alert's groups
+
+    `full_log` is deliberately NOT here. It is raw machine output and it was
+    the cause of inconsistent classification.
+    """
+    pieces = [alert.rule_description.lower()]
+
+    rule_block = alert.raw.get("rule")
+    if isinstance(rule_block, dict):
+        pieces.append(" ".join(str(g).lower() for g in rule_block.get("groups", [])))
+
+    trigger = alert.raw.get("_trigger_description")
+    if trigger:
+        pieces.append(str(trigger).lower())
+
+    pieces.append(" ".join(str(g).lower() for g in alert.raw.get("_trigger_groups", [])))
+
+    return " ".join(piece for piece in pieces if piece)
 
 
 def classify_attack_type(alert: Alert) -> tuple[AttackType, list[str]]:
-    """Find the attack family by searching the alert's text for keywords.
-
-    Returns TWO things: the attack type, AND the list of clues that proved it.
-    Returning the evidence alongside the answer is what makes the decision
-    auditable instead of merely asserted.
-    """
-    # Build one big block of lowercase text to search in.
-    # We search three places, because the useful word may be in any of them:
-    #   1. the rule description  ("sshd: brute force trying to get access")
-    #   2. the raw log line      (the real evidence from the machine)
-    #   3. the Wazuh rule groups (["syslog", "sshd", "authentication_failures"])
-    #
-    # `.lower()` makes everything lowercase so "Brute Force" matches "brute force".
-    # `filter(None, [...])` drops any empty pieces.
-    # `" ".join(...)` glues what is left into one string.
-    rule_block = alert.raw.get("rule", {})
-    groups_text = ""
-    if isinstance(rule_block, dict):
-        groups_text = " ".join(str(g).lower() for g in rule_block.get("groups", []))
-
-    haystack = " ".join(filter(None, [
-        alert.rule_description.lower(),
-        (alert.full_log or "").lower(),
-        groups_text,
-    ]))
-
-    # Walk the table in order and return on the first keyword that appears.
+    """Find the attack family. Returns the answer AND the clue that proved it."""
+    haystack = _classification_text(alert)
     for attack_type, keywords in ATTACK_KEYWORDS:
         for keyword in keywords:
             if keyword in haystack:
                 return attack_type, [f"keyword:{keyword}"]
-
-    # Nothing matched. We say UNKNOWN honestly instead of guessing.
-    # An honest "I don't know" is far better than a confident wrong answer,
-    # especially in security.
+    # Honest "I don't know" beats a confident wrong answer.
     return AttackType.UNKNOWN, []
 
 
 # =============================================================================
-# STEP 2 — HOW SERIOUS?
+# STEP 2 - HOW SERIOUS?
 # =============================================================================
 
 
 def base_severity(rule_level: int) -> Severity:
     """Turn the Wazuh level (0-15) into one of our five severity words."""
-    # The list is ordered highest first, so the first band we reach is correct.
     for threshold, severity in SEVERITY_BY_BAND:
         if rule_level >= threshold:
             return severity
-    # Below every threshold, so levels 0-3.
     return Severity.INFO
 
 
 # =============================================================================
-# STEP 3 — PUT IT ALL TOGETHER
+# STEP 3 - PUT IT ALL TOGETHER
 # =============================================================================
 
 
 def assign_severity(alert: Alert) -> TriageResult:
     """The complete triage decision. One Alert in, one TriageResult out.
 
-    This is the function the triage agent will call. It is a PURE function:
-    it reads nothing outside its input, changes nothing, touches no network
-    and no clock. Same input, same output, forever. That is what makes it
-    testable and what makes the result reproducible.
+    A pure function: no network, no clock, no hidden state. Same input,
+    same output, forever.
     """
-    # We collect every clue here as we go. This list becomes the proof.
     signals: list[str] = []
 
-    # --- What kind of attack? ------------------------------------------------
     attack_type, type_signals = classify_attack_type(alert)
-    # `.extend()` adds all items of one list into another.
     signals.extend(type_signals)
 
-    # --- How serious? --------------------------------------------------------
+    # If this alert came from an active-response record, say so explicitly.
+    # Before this line, the behaviour happened by accident. Now it is
+    # deliberate AND written into the audit trail.
+    if alert.raw.get("_trigger_description"):
+        signals.append(f"active_response:{alert.raw.get('_response_command', 'unknown')}")
+        signals.append(f"trigger_rule:{alert.raw.get('_trigger_rule_id', '?')}")
+
     severity = base_severity(alert.rule_level)
     signals.append(f"wazuh_level:{alert.rule_level}")
-
-    # Turn the 0-15 level into a 0-100 score, then adjust it with context.
-    # `round()` gives a whole number, which our contract requires.
     score = round(alert.rule_level / 15 * 100)
 
-    # --- Context adjustment 1: where did it come from? -----------------------
-    # An attack from the public internet is more worrying than one from the
-    # office network. `is_private_src` is the helper we built in Step 4.
-    if alert.src_ip and not alert.is_private_src:
-        # `min(100, ...)` stops the score going above 100, which our contract
-        # would refuse.
-        score = min(100, score + 10)
-        signals.append("external_source_ip")
-    elif alert.is_private_src:
-        signals.append("internal_source_ip")
+    if attack_type in NON_THREATS:
+        # Not an attack. Force it to the bottom and skip the threat
+        # adjustments entirely - an external IP on a successful login is
+        # just a person working from home.
+        severity = Severity.INFO
+        score = min(score, 10)
+        signals.append("non_threat_event")
+    else:
+        if alert.src_ip and not alert.is_private_src:
+            score = min(100, score + 10)
+            signals.append("external_source_ip")
+        elif alert.is_private_src:
+            signals.append("internal_source_ip")
 
-    # --- Context adjustment 2: which account? --------------------------------
-    # An attack on a powerful account matters more.
-    # Curly braces make a SET, which is the fastest way to ask "is it one of these?"
-    if alert.user in {"root", "admin", "administrator"}:
-        score = min(100, score + 5)
-        signals.append(f"privileged_account:{alert.user}")
+        if alert.user in {"root", "admin", "administrator"}:
+            score = min(100, score + 5)
+            signals.append(f"privileged_account:{alert.user}")
 
-    # --- How confident are we? -----------------------------------------------
-    # Honest confidence, not decoration. If we could not even identify the
-    # attack type, we say so with a low number.
     if attack_type is AttackType.UNKNOWN:
         confidence = 0.40
+    elif attack_type in NON_THREATS:
+        confidence = 0.90
     elif alert.rule_level >= LEVEL_HIGH:
         confidence = 0.95
     elif alert.rule_level >= LEVEL_MEDIUM:
@@ -209,12 +219,8 @@ def assign_severity(alert: Alert) -> TriageResult:
     else:
         confidence = 0.65
 
-    # --- The decision that drives the whole graph ----------------------------
-    # This single True/False later decides whether the pipeline STOPS and waits
-    # for a human, or closes by itself. It is the most important line here.
     escalate = severity in (Severity.CRITICAL, Severity.HIGH)
 
-    # --- Write the explanation for the human reader --------------------------
     rationale = (
         f"Wazuh rule {alert.rule_id} fired at level {alert.rule_level}/15 on "
         f"{alert.agent_name}, mapped to {severity.value} severity. "
@@ -222,8 +228,6 @@ def assign_severity(alert: Alert) -> TriageResult:
         f"{'Escalating to Tier 2.' if escalate else 'Auto-closing at Tier 1.'}"
     )
 
-    # Build the contract object. If anything we computed were out of range,
-    # Pydantic would refuse it right here — the quality gate from Step 5.
     return TriageResult(
         attack_type=attack_type,
         severity=severity,
