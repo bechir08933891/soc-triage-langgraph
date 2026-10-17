@@ -26,7 +26,8 @@ what every agent is doing, which tools it calls, and what it costs.
 - [x] Step 3 — Connected to GitHub
 - [x] Step 4 — The Alert contract (input validation)
 - [x] Step 5 — Closed vocabularies and the Triage contract
-- [ ] Step 6 — The remaining agent contracts
+- [x] Step 6 — All five agent contracts complete
+- [ ] Step 7 — The shared memory (SOCState)
 
 ## Installation
 
