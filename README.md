@@ -24,7 +24,8 @@ what every agent is doing, which tools it calls, and what it costs.
 - [x] Step 1 — Environment prepared
 - [x] Step 2 — Project and dependencies installed
 - [x] Step 3 — Connected to GitHub
-- [ ] Step 4 — Data contracts (Pydantic models)
+- [x] Step 4 — The Alert contract (input validation)
+- [ ] Step 5 — The agent output contracts
 
 ## Installation
 

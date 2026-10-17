@@ -34,3 +34,6 @@ data/chroma/
 .idea/
 Thumbs.db
 desktop.ini
+
+# === My personal scratch file for experiments ===
+playground.py
