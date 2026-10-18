@@ -47,10 +47,13 @@ GENERIC_ACCOUNTS = {
 }
 
 
-# Which kill-chain stage a description suggests. Order matters: the later
-# stages are checked first, because an alert mentioning both a login and
-# exfiltration is better described by the exfiltration.
+# Which kill-chain stage a description suggests. ORDER MATTERS — first match
+# wins — and the NON-ATTACK family comes first, for the same reason it comes
+# first in tools/severity.py: asking "is this even an attack?" before
+# "which attack?" stops normal operations being dressed up as intrusions.
 STAGE_BY_KEYWORD: list[tuple[tuple[str, ...], AttackStage]] = [
+    (("log file rotated", "session closed", "was solved", "was fixed",
+      "log rotation", "logout"), AttackStage.NOT_APPLICABLE),
     (("exfiltration", "large outbound"), AttackStage.EXFILTRATION),
     (("crontab", "rootkit", "scheduled task", "backdoor"), AttackStage.PERSISTENCE),
     (("sudo to root", "privilege escalation", "setuid"),
@@ -162,10 +165,15 @@ def infer_attack_stage(alert: Alert, movement: dict) -> tuple[AttackStage, str]:
         return (AttackStage.LATERAL_MOVEMENT,
                 "an identity authenticated successfully on multiple hosts")
 
+    # `full_log` is deliberately NOT searched. It is raw machine output, and
+    # tools/severity.py already proved it causes the same description to be
+    # classified two different ways. Same rule, same reason, same fields:
+    # the curated description, the trigger's description, and Wazuh's groups.
     haystack = " ".join(filter(None, [
         alert.rule_description.lower(),
-        (alert.full_log or "").lower(),
         str(alert.raw.get("_trigger_description") or "").lower(),
+        " ".join(str(g).lower()
+                 for g in (alert.raw.get("_trigger_groups") or [])),
     ]))
     for keywords, stage in STAGE_BY_KEYWORD:
         for keyword in keywords:

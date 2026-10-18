@@ -148,6 +148,14 @@ for alert in alerts:
     if result.attack_stage == AttackStage.UNDETERMINED:
         unmatched[alert.rule_description] += 1
 
+# Printing BOTH layers side by side: the triage attack type and the
+# forensics stage. Where they disagree, one of the two keyword lists is
+# incomplete, and the disagreement is the thing worth looking at.
+from tools.severity import assign_severity
+
 print(f"  distinct unmatched descriptions : {len(unmatched)}")
-for description, count in unmatched.most_common(15):
-    print(f"    {count:>4}x  {description[:62]}")
+print(f"  {'count':>6}  {'triage says':<18}  description")
+for description, count in unmatched.most_common(25):
+    example = next(a for a in alerts if a.rule_description == description)
+    attack_type = assign_severity(example).attack_type.value
+    print(f"  {count:>5}x  {attack_type:<18}  {description[:48]}")

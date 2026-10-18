@@ -88,8 +88,12 @@ class AttackStage(str, Enum):
     PERSISTENCE = "Persistence"                  # they installed a back door
     PRIVILEGE_ESCALATION = "PrivilegeEscalation" # they became administrator
     LATERAL_MOVEMENT = "LateralMovement"         # they moved to another machine
-    EXFILTRATION = "Exfiltration"                # they are stealing data
-    UNDETERMINED = "Undetermined"                # not enough evidence to say
+    EXFILTRATION = "Exfiltration"
+    # "This is not attack activity" — a log rotation, a logout, a patch.
+    # Deliberately different from UNDETERMINED, which means "I could not
+    # tell". They lead an analyst to opposite actions: move on, or dig in.
+    NOT_APPLICABLE = "NotApplicable"
+    UNDETERMINED = "Undetermined"
 
 
 class Verdict(str, Enum):

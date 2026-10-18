@@ -335,6 +335,111 @@ and it can show where the boundary lies.
 
 Reproduce with `python measure.py`.
 
+### Finding 9 — host names were recoverable from the log payload
+
+`agent.name` is anonymised to `xxx` in the published dataset, but 93.6% of
+records carry a syslog-format `full_log` whose second field is the real host.
+Parsing it raised alerts with a usable host name from ~6% to **691/738 =
+93.6%** and revealed four distinct hosts. The remaining 47 are nginx access
+logs, whose format has no host field at all.
+
+Script: `test_forensics.py` (Part 1)
+
+### Finding 10 — the corpus is a single-sensor capture, so lateral movement is absent
+
+Recovering the host names made the shape of the data visible:
+
+| host | alerts | share |
+|---|---:|---:|
+| wazuh-server | 633 | 85.8% |
+| unknown-host (nginx) | 47 | 6.4% |
+| staging-environment | 38 | 5.1% |
+| prod-server | 20 | 2.7% |
+
+The forensics detector therefore reports **0.0% lateral movement** and
+**0.7% horizontal spread** across all 738 alerts. This is the correct
+answer: 85.8% of alerts come from one machine, so there is nowhere to move
+to. The dataset cannot exercise multi-host detection.
+
+The detector is instead validated against three labelled synthetic
+incidents (`tools/scenarios.py`), dated 2030 and prefixed `DEMO-` so they
+can never be read as evidence: one true lateral movement, and two traps
+(a generic `admin` account on three hosts, and a named account that reached
+three hosts without a single success). Only the first is flagged.
+
+An earlier version of this detector, using the rule "same user on two or
+more hosts", flagged **100%** of alerts. The flaw was conceptual rather
+than technical: horizontal scanning had been conflated with lateral
+movement. The corrected detector requires a non-generic identity with a
+recorded successful authentication on more than one host inside a bounded
+window, and reports scanning separately.
+
+Scripts: `test_forensics.py` (Parts 3 and 6), `tools/forensics.py`
+
+### Finding 11 — a time window must be centred, not merely bounded
+
+The first timeline query used `ORDER BY timestamp LIMIT 25` over a ±60
+minute window. In a dense window this returns the oldest 25 events — the
+hour *before* the alert — and excludes the alert being investigated. The
+fault was visible in the output: a limit of 25 produced 26 events, because
+a fallback had to re-insert the focus alert into its own timeline.
+
+Ordering by `ABS(julianday(timestamp) - julianday(focus))` and re-sorting
+chronologically places the alert at the centre and narrows the window to
+the interval that actually contains activity (60 minutes down to 24 on the
+case measured).
+
+Script: `tools/history.py` (`alerts_near`)
+
+### Finding 12 — a field-trust rule held in a comment gets violated
+
+Step 9 removed `full_log` from the triage classifier, because raw machine
+text caused the same rule description to be classified two different ways.
+The reason was recorded in a docstring. Three steps later the forensics
+stage inference searched `full_log` again.
+
+Measured impact on current answers: none. The change removes a latent
+inconsistency rather than a visible defect, which makes it the harder class
+of fault to find — nothing fails, the system is simply one unlucky log line
+away from disagreeing with itself.
+
+Both modules now read the same trusted fields: the curated rule
+description, the triggering alert's description, and Wazuh's rule groups.
+The lesson for the architecture is that a constraint shared by two modules
+belongs in a shared function, not in prose.
+
+Scripts: `tools/severity.py`, `tools/forensics.py`
+
+### Finding 13 — the dataset's "vulnerability" alerts are remediations
+
+The triage rules reported 12 `Vulnerability` alerts. Reading them:
+
+> The CVE-2025-24528 that affected libkrb5-3 **was solved** due to a
+> package update
+
+These are patches being applied. The classifier matched the token `cve-`
+and stopped. An analyst reading the queue would conclude the estate carries
+unpatched CVEs; the records say the opposite.
+
+The phrase `was solved` is now matched by the non-threat family, which is
+evaluated first, so a remediation notice is reported as normal activity and
+a genuine CVE alert still reaches `Vulnerability`. After the correction the
+corpus contains **no unpatched-vulnerability alerts at all** — only
+remediation notices.
+
+A related design decision is left deliberately in place and flagged here:
+`Vulnerability` is treated as a non-threat and forced to `Info`. That is
+correct for "not an active attack" and arguably wrong for queue
+prioritisation, since an unpatched CVE is actionable. The corpus cannot
+settle the question, because it contains no such alert.
+
+A third stage value, `NotApplicable`, now separates "this is not attack
+activity" (a log rotation, a logout, a patch — about 24 alerts) from
+`Undetermined`, "I could not tell" (about 4). The two lead an analyst to
+opposite actions, so collapsing them into one label destroys the signal.
+
+Scripts: `test_forensics.py` (Parts 3 and 7), `tools/severity.py`
+
 ---
 
 ## Design decisions
@@ -468,7 +573,7 @@ soc-triage-langgraph/
 
 ### Remaining
 - [x] Step 15 — Forensics tools: host recovery, SQLite history, movement detection
-- [ ] Step 16 — Forensics as a third A2A agent
+- [ ] Step 16 — Forensics as a third A2A agent, with LLM narrative synthesis
 - [ ] Step 17 — The full graph: conditional edges, checkpoints, human-in-the-loop
 - [ ] Step 18 — Streamlit demonstration interface (the five visual layers)
 - [ ] Step 19 — Automated test suite

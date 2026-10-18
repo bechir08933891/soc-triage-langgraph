@@ -50,7 +50,11 @@ ATTACK_KEYWORDS: list[tuple[AttackType, tuple[str, ...]]] = [
     (AttackType.NORMAL_ACTIVITY, (
         "authentication success", "login session opened", "login session closed",
         "session opened", "session closed", "log file rotated", "logon success",
-        "connection reset", "database update",
+        # "was solved" must be checked HERE, before the VULNERABILITY family.
+        # A resolved CVE is a patch being applied, not a vulnerability. The
+        # old order matched "cve-" and reported 12 vulnerabilities that were
+        # in fact 12 remediations.
+        "connection reset", "database update", "was solved", "was fixed",
     )),
     (AttackType.VULNERABILITY, (
         "cve-", "vulnerability", "was solved", "package upgrade",
