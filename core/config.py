@@ -56,10 +56,12 @@ A2A_BASE_URL = f"http://{A2A_HOST}:{A2A_PORT}"
 # Where each agent publishes its Agent Card. ".well-known" is a web
 # convention: a fixed location where a service describes itself, so a
 # caller who knows only the address can discover what the agent can do.
+# Four agents; the fifth is the human, who needs no web address.
 AGENT_CARD_PATHS = {
     "triage": "/triage/.well-known/agent-card.json",
     "hunter": "/hunter/.well-known/agent-card.json",
     "forensics": "/forensics/.well-known/agent-card.json",
+    "reporter": "/reporter/.well-known/agent-card.json",
 }
 
 
@@ -92,9 +94,11 @@ LLM_MAX_RETRIES = int(os.getenv("SOC_LLM_RETRIES", "2"))
 
 
 def card_url(agent: str) -> str:
-    """The card path for one agent. Raises KeyError for an unknown name,
-    which is better than returning None and failing later with a confusing
-    network error."""
+    """The card path for one agent.
+
+    Raises KeyError for an unknown name, which is better than returning
+    None and failing later with a confusing network error.
+    """
     return AGENT_CARD_PATHS[agent]
 
 

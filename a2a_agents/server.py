@@ -29,8 +29,8 @@ from a2a.server.tasks import InMemoryTaskStore
 
 # `as FORENSICS_PATH` renames on import. EVERY agent file defines AGENT_PATH
 # and CARD_PATH, so without renaming, the later imports would silently
-# overwrite the earlier ones - a nasty bug that would send forensics
-# requests to triage.
+# overwrite the earlier ones - a nasty bug that would send reporter
+# requests to triage. Only the triage agent keeps the plain names.
 from a2a_agents.forensics_agent import (
     AGENT_PATH as FORENSICS_PATH,
     CARD_PATH as FORENSICS_CARD_PATH,
@@ -43,6 +43,12 @@ from a2a_agents.hunter_agent import (
     HUNTER_CARD,
     HunterAgentExecutor,
 )
+from a2a_agents.reporter_agent import (
+    AGENT_PATH as REPORTER_PATH,
+    CARD_PATH as REPORTER_CARD_PATH,
+    REPORTER_CARD,
+    ReporterAgentExecutor,
+)
 from a2a_agents.triage_agent import (
     AGENT_HOST,
     AGENT_PATH,
@@ -53,8 +59,9 @@ from a2a_agents.triage_agent import (
 )
 
 
-# The list of agents we host. Adding the reporter later means adding one
-# entry here; nothing else changes.
+# The list of agents we host. Four of the five; the fifth is the human, who
+# does not need a web address. Adding another agent means adding one entry
+# here and nothing else.
 AGENTS = [
     {
         "name": "triage",
@@ -76,6 +83,13 @@ AGENTS = [
         "executor": ForensicsAgentExecutor(),
         "rpc_url": FORENSICS_PATH,
         "card_url": FORENSICS_CARD_PATH,
+    },
+    {
+        "name": "reporter",
+        "card": REPORTER_CARD,
+        "executor": ReporterAgentExecutor(),
+        "rpc_url": REPORTER_PATH,
+        "card_url": REPORTER_CARD_PATH,
     },
 ]
 

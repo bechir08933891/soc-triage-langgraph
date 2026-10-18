@@ -307,7 +307,6 @@ class HuntRequest(BaseModel):
     local_hits: int = Field(default=0, ge=0)
 
 
-
 class ForensicsRequest(BaseModel):
     """What a caller sends to the forensics agent over A2A.
 
@@ -320,3 +319,18 @@ class ForensicsRequest(BaseModel):
 
     alert: dict[str, Any]
     window_minutes: int = Field(default=60, ge=5, le=1440)
+
+
+class ReportRequest(BaseModel):
+    """What a caller sends to the reporter agent over A2A.
+
+    Every finding is OPTIONAL. A report must still be produced when an
+    agent failed or was skipped, because "the hunter did not answer" is
+    information a human needs - and a report that silently omits a missing
+    input looks exactly like a report where that input came back clean.
+    """
+
+    alert: dict[str, Any]
+    triage_result: Optional[dict[str, Any]] = None
+    hunt_result: Optional[dict[str, Any]] = None
+    forensics_result: Optional[dict[str, Any]] = None
