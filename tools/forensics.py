@@ -28,7 +28,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from pydantic import BaseModel, Field
+
 from core.contracts import AttackStage, ForensicsResult, TimelineEvent
+# The LLM layer from Step 13. `structured_call` promises that ONLY
+# LLMUnavailable ever escapes it — but we still catch bare Exception below,
+# because that promise was broken once already and cost us a crash.
+from core.llm import LLMUnavailable, llm_available, structured_call
 from core.models import Alert
 from tools import history
 
@@ -234,4 +240,139 @@ def investigate(alert: Alert,
         "user_hosts": movement["user_hosts"],
         "ip_hosts": movement["ip_hosts"],
     }
+    return result, meta
+
+# =============================================================================
+# THE LANGUAGE LAYER - turns verified facts into prose, and nothing more
+# =============================================================================
+
+# Every line here exists to stop the model doing something we do not want.
+# The third rule is the important one: the deterministic layer has already
+# decided whether this is lateral movement, and the model must not overrule
+# it with a more exciting story.
+NARRATIVE_SYSTEM_PROMPT = (
+    "You are a SOC incident responder. You are given VERIFIED FACTS about "
+    "one alert and the events around it, already reconstructed by "
+    "deterministic tools. Your only job is to write the incident narrative "
+    "and a containment priority.\n\n"
+    "Rules you must follow:\n"
+    "- Use ONLY the facts provided. Invent nothing.\n"
+    "- If the facts say lateral movement is false, do NOT describe movement "
+    "between hosts. Scanning is not movement.\n"
+    "- Say plainly when the evidence is thin, and set a low priority.\n"
+    "- The narrative must be 3 to 5 sentences, for a human analyst.\n"
+    "- containment_priority is 0-100: how urgently a human should act."
+)
+
+
+class ForensicsNarrative(BaseModel):
+    """The ONLY two things the model is allowed to produce.
+
+    Deliberately tiny. The model cannot return a stage, a host list or a
+    lateral-movement verdict, because those are already decided by code.
+    A schema is a much stronger constraint than a politely worded prompt:
+    `min_length` rejects a one-word answer, and `ge/le` make a priority of
+    400 impossible rather than merely discouraged.
+    """
+    narrative: str = Field(min_length=60, max_length=1500)
+    containment_priority: int = Field(ge=0, le=100)
+
+
+def facts_for_prompt(alert: Alert, result: ForensicsResult,
+                     meta: dict) -> str:
+    """Build the fact block the model is given.
+
+    Printable on purpose: whatever the model saw, you can see too. In a
+    defense, being able to show the exact input beside the exact output is
+    the difference between a demonstration and a magic trick.
+    """
+    lines = [
+        "ALERT",
+        f"  id          : {alert.id}",
+        f"  time        : {alert.timestamp.isoformat()}",
+        f"  description : {alert.rule_description}",
+        f"  wazuh level : {alert.rule_level}/15",
+        f"  host        : {alert.agent_name}",
+        f"  source ip   : {alert.src_ip or 'none'}",
+        f"  account     : {alert.user or 'none'}",
+        "",
+        "MULTI-HOST ANALYSIS",
+        f"  lateral movement  : {result.lateral_movement}",
+        f"  horizontal spread : {result.horizontal_spread}",
+        f"  successful auths  : {meta['successes']}",
+        f"  generic account   : {meta['account_is_generic']}",
+        f"  affected hosts    : {', '.join(result.affected_hosts) or 'none'}",
+        f"  attack stage      : {result.attack_stage.value} "
+        f"({meta['stage_reason']})",
+        "",
+        f"TIMELINE ({len(result.timeline)} events, "
+        f"{meta['window_minutes']} minute window)",
+    ]
+    for event in result.timeline:
+        marker = ">>" if event.is_focus else "  "
+        lines.append(f"  {marker} {event.timestamp.strftime('%H:%M:%S')} "
+                     f"[{event.host}] {event.description[:60]}")
+    return "\n".join(lines)
+
+
+def narrate(alert: Alert,
+            window_minutes: int = TIMELINE_WINDOW_MINUTES
+            ) -> tuple[ForensicsResult, dict]:
+    """The full forensic pass, WITH a written narrative when possible.
+
+    Five paths, all of which return a usable result:
+      1. stage is NotApplicable -> skip the model, save the money
+      2. no API key / offline   -> deterministic text only
+      3. the model answers      -> narrative appended to the analysis
+      4. the model is down      -> deterministic text, reason recorded
+      5. something unexpected   -> deterministic text, reason recorded
+
+    `narrate` NEVER raises because of the model. The deterministic result
+    exists before the model is contacted, so the worst case is plainer
+    language, not a failed investigation.
+    """
+    result, meta = investigate(alert, window_minutes=window_minutes)
+
+    # Everything the audit trail needs, set up front so the keys always
+    # exist no matter which path we take. Code that reads meta later should
+    # never have to guess whether a key is there.
+    meta.update({"llm_used": False, "usage": None, "fallback_reason": None,
+                 "skipped_reason": None, "containment_priority": None,
+                 "deterministic_analysis": result.analysis})
+
+    # PATH 1 - a log rotation does not need a story written about it.
+    if result.attack_stage is AttackStage.NOT_APPLICABLE:
+        meta["skipped_reason"] = (
+            "stage is NotApplicable - no attack to narrate")
+        return result, meta
+
+    # PATH 2 - no key, or SOC_OFFLINE_MODE is on.
+    if not llm_available():
+        meta["fallback_reason"] = "No API key, or offline mode is on."
+        return result, meta
+
+    try:
+        # PATH 3 - the happy one.
+        narrative, usage = structured_call(
+            ForensicsNarrative, NARRATIVE_SYSTEM_PROMPT,
+            facts_for_prompt(alert, result, meta))
+        meta["llm_used"] = True
+        meta["usage"] = usage
+        meta["containment_priority"] = narrative.containment_priority
+        # `model_copy(update=...)` makes a NEW result with one field changed.
+        # The deterministic sentence is KEPT in front of the narrative, so a
+        # reviewer always sees the machine-checked facts first and the prose
+        # second - never prose alone.
+        result = result.model_copy(update={
+            "analysis": f"{result.analysis} NARRATIVE: {narrative.narrative}"})
+    except LLMUnavailable as error:
+        # PATH 4 - the documented failure.
+        meta["fallback_reason"] = str(error)[:300]
+    except Exception as error:
+        # PATH 5 - the undocumented one. This net is here because the
+        # "only LLMUnavailable escapes" promise failed once in Step 13 and
+        # killed a running script.
+        meta["fallback_reason"] = (
+            f"Unexpected {type(error).__name__}: {str(error)[:250]}")
+
     return result, meta
