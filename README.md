@@ -440,6 +440,16 @@ opposite actions, so collapsing them into one label destroys the signal.
 
 Scripts: `test_forensics.py` (Parts 3 and 7), `tools/severity.py`
 
+A third stage value, `NotApplicable`, separates "this is not attack
+activity" (21 alerts — log rotations, logouts, patch notices) from
+`Undetermined`, "I could not tell" (7 alerts, 0.9%: three connection
+resets, two uncategorised nginx messages, one active-response unblock, one
+empty description). The two lead an analyst to opposite actions, so
+collapsing them into one label destroys the signal. The residual 0.9% is
+left as `Undetermined` deliberately: every remaining case is one or two
+records, and a keyword added to fix a single row is over-fitting, not
+classification.
+
 ---
 
 ## Design decisions
