@@ -1,0 +1,1130 @@
+{
+  "45.55.159.241|170": {
+    "indicator": "45.55.159.241",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 90,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 170 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP DigitalOcean, LLC",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "malicious",
+        "score": 90,
+        "detail": "170 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP DigitalOcean, LLC"
+      }
+    }
+  },
+  "103.189.88.237|170": {
+    "indicator": "103.189.88.237",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 90,
+    "country": "IN",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 170 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Mind Over Matter Solutions PTE LTD",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "malicious",
+        "score": 90,
+        "detail": "170 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Mind Over Matter Solutions PTE LTD"
+      }
+    }
+  },
+  "116.193.190.42|152": {
+    "indicator": "116.193.190.42",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 90,
+    "country": "ID",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 152 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP PT Cloud Hosting Indonesia",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "malicious",
+        "score": 90,
+        "detail": "152 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP PT Cloud Hosting Indonesia"
+      }
+    }
+  },
+  "14.103.118.153|65": {
+    "indicator": "14.103.118.153",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 100,
+    "country": "CN",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 65 alert(s) from this address in our own corpus | AbuseIPDB: 1219 reports, ISP Beijing Volcano Engine Technology Co., Ltd.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "malicious",
+        "score": 90,
+        "detail": "65 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "malicious",
+        "score": 100,
+        "detail": "1219 reports, ISP Beijing Volcano Engine Technology Co., Ltd."
+      }
+    }
+  },
+  "2.57.122.196|23": {
+    "indicator": "2.57.122.196",
+    "ioc_type": "ipv4",
+    "verdict": "suspicious",
+    "abuse_confidence": 50,
+    "country": "RO",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 23 alert(s) from this address in our own corpus | AbuseIPDB: 76 reports, ISP TECHOFF SRV LIMITED",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "suspicious",
+        "score": 50,
+        "detail": "23 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "suspicious",
+        "score": 36,
+        "detail": "76 reports, ISP TECHOFF SRV LIMITED"
+      }
+    }
+  },
+  "92.255.85.189|10": {
+    "indicator": "92.255.85.189",
+    "ioc_type": "ipv4",
+    "verdict": "suspicious",
+    "abuse_confidence": 50,
+    "country": "RU",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 10 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Chang Way Technologies Co. Limited",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "suspicious",
+        "score": 50,
+        "detail": "10 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Chang Way Technologies Co. Limited"
+      }
+    }
+  },
+  "92.255.85.188|9": {
+    "indicator": "92.255.85.188",
+    "ioc_type": "ipv4",
+    "verdict": "suspicious",
+    "abuse_confidence": 50,
+    "country": "RU",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 9 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Chang Way Technologies Co. Limited",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "suspicious",
+        "score": 50,
+        "detail": "9 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Chang Way Technologies Co. Limited"
+      }
+    }
+  },
+  "43.252.103.253|6": {
+    "indicator": "43.252.103.253",
+    "ioc_type": "ipv4",
+    "verdict": "suspicious",
+    "abuse_confidence": 50,
+    "country": "IN",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 6 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Wan & Lan Internet Pvt. Ltd.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "suspicious",
+        "score": 50,
+        "detail": "6 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Wan & Lan Internet Pvt. Ltd."
+      }
+    }
+  },
+  "193.168.198.137|6": {
+    "indicator": "193.168.198.137",
+    "ioc_type": "ipv4",
+    "verdict": "suspicious",
+    "abuse_confidence": 50,
+    "country": "FI",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 6 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Neterra Ltd.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "suspicious",
+        "score": 50,
+        "detail": "6 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Neterra Ltd."
+      }
+    }
+  },
+  "8.220.202.246|5": {
+    "indicator": "8.220.202.246",
+    "ioc_type": "ipv4",
+    "verdict": "suspicious",
+    "abuse_confidence": 50,
+    "country": "KR",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 5 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Alibaba Cloud (Singapore) Private Limited",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "suspicious",
+        "score": 50,
+        "detail": "5 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Alibaba Cloud (Singapore) Private Limited"
+      }
+    }
+  },
+  "162.142.125.46|5": {
+    "indicator": "162.142.125.46",
+    "ioc_type": "ipv4",
+    "verdict": "suspicious",
+    "abuse_confidence": 50,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 5 alert(s) from this address in our own corpus | AbuseIPDB: 4 reports, ISP Censys, Inc.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "suspicious",
+        "score": 50,
+        "detail": "5 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "4 reports, ISP Censys, Inc."
+      }
+    }
+  },
+  "204.76.203.15|5": {
+    "indicator": "204.76.203.15",
+    "ioc_type": "ipv4",
+    "verdict": "suspicious",
+    "abuse_confidence": 50,
+    "country": "NL",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 5 alert(s) from this address in our own corpus | AbuseIPDB: 8 reports, ISP Intelligence Hosting LLC",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "suspicious",
+        "score": 50,
+        "detail": "5 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 2,
+        "detail": "8 reports, ISP Intelligence Hosting LLC"
+      }
+    }
+  },
+  "78.153.140.224|4": {
+    "indicator": "78.153.140.224",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 18,
+    "country": "GB",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 4 alert(s) from this address in our own corpus | AbuseIPDB: 34 reports, ISP HOSTGLOBAL.PLUS LTD",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "4 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 18,
+        "detail": "34 reports, ISP HOSTGLOBAL.PLUS LTD"
+      }
+    }
+  },
+  "196.251.66.5|3": {
+    "indicator": "196.251.66.5",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "SC",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 3 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP internet-security-Nybula",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "3 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP internet-security-Nybula"
+      }
+    }
+  },
+  "18.188.14.118|3": {
+    "indicator": "18.188.14.118",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 3 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Amazon Technologies Inc.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "3 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Amazon Technologies Inc."
+      }
+    }
+  },
+  "162.216.149.95|3": {
+    "indicator": "162.216.149.95",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 3 alert(s) from this address in our own corpus | AbuseIPDB: 3494 reports, ISP Google LLC",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "3 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "3494 reports, ISP Google LLC"
+      }
+    }
+  },
+  "185.242.226.117|3": {
+    "indicator": "185.242.226.117",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "NL",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 3 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP HostUS Solutions LLC",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "3 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP HostUS Solutions LLC"
+      }
+    }
+  },
+  "162.216.150.166|3": {
+    "indicator": "162.216.150.166",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 3 alert(s) from this address in our own corpus | AbuseIPDB: 3567 reports, ISP Google LLC",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "3 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "3567 reports, ISP Google LLC"
+      }
+    }
+  },
+  "220.132.202.105|3": {
+    "indicator": "220.132.202.105",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "TW",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 3 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Chunghwa Telecom Data Communication Business Group",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "3 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Chunghwa Telecom Data Communication Business Group"
+      }
+    }
+  },
+  "84.239.6.6|3": {
+    "indicator": "84.239.6.6",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 3 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP INVITE Systems SRL",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "3 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP INVITE Systems SRL"
+      }
+    }
+  },
+  "92.118.39.74|2": {
+    "indicator": "92.118.39.74",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 100,
+    "country": "RO",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 3675 reports, ISP DMZHOST",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "malicious",
+        "score": 100,
+        "detail": "3675 reports, ISP DMZHOST"
+      }
+    }
+  },
+  "195.178.110.54|2": {
+    "indicator": "195.178.110.54",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "NL",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 2 reports, ISP TECHOFF SRV LIMITED",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 2,
+        "detail": "2 reports, ISP TECHOFF SRV LIMITED"
+      }
+    }
+  },
+  "45.148.10.80|2": {
+    "indicator": "45.148.10.80",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 100,
+    "country": "NL",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1206 reports, ISP TECHOFF SRV LIMITED",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "malicious",
+        "score": 100,
+        "detail": "1206 reports, ISP TECHOFF SRV LIMITED"
+      }
+    }
+  },
+  "64.62.156.82|2": {
+    "indicator": "64.62.156.82",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 100,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1767 reports, ISP The Shadowserver Foundation, Inc.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "malicious",
+        "score": 100,
+        "detail": "1767 reports, ISP The Shadowserver Foundation, Inc."
+      }
+    }
+  },
+  "195.178.110.163|2": {
+    "indicator": "195.178.110.163",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "NL",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1 reports, ISP TECHOFF SRV LIMITED",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 2,
+        "detail": "1 reports, ISP TECHOFF SRV LIMITED"
+      }
+    }
+  },
+  "103.56.61.136|2": {
+    "indicator": "103.56.61.136",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "CN",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1 reports, ISP Zhenjiang Guangyuan Network Technology Co., Ltd.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 2,
+        "detail": "1 reports, ISP Zhenjiang Guangyuan Network Technology Co., Ltd."
+      }
+    }
+  },
+  "64.62.156.89|2": {
+    "indicator": "64.62.156.89",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 100,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1594 reports, ISP The Shadowserver Foundation, Inc.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "malicious",
+        "score": 100,
+        "detail": "1594 reports, ISP The Shadowserver Foundation, Inc."
+      }
+    }
+  },
+  "64.62.156.90|2": {
+    "indicator": "64.62.156.90",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 100,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1573 reports, ISP The Shadowserver Foundation, Inc.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "malicious",
+        "score": 100,
+        "detail": "1573 reports, ISP The Shadowserver Foundation, Inc."
+      }
+    }
+  },
+  "89.248.165.51|2": {
+    "indicator": "89.248.165.51",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "NL",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP RECYBER PROJECT NETBLOCK",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP RECYBER PROJECT NETBLOCK"
+      }
+    }
+  },
+  "64.233.173.64|2": {
+    "indicator": "64.233.173.64",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "SG",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Google LLC",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Google LLC"
+      }
+    }
+  },
+  "64.62.156.30|2": {
+    "indicator": "64.62.156.30",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 100,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1690 reports, ISP The Shadowserver Foundation, Inc.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "malicious",
+        "score": 100,
+        "detail": "1690 reports, ISP The Shadowserver Foundation, Inc."
+      }
+    }
+  },
+  "64.62.156.35|2": {
+    "indicator": "64.62.156.35",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 100,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1664 reports, ISP The Shadowserver Foundation, Inc.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "malicious",
+        "score": 100,
+        "detail": "1664 reports, ISP The Shadowserver Foundation, Inc."
+      }
+    }
+  },
+  "64.62.156.26|2": {
+    "indicator": "64.62.156.26",
+    "ioc_type": "ipv4",
+    "verdict": "malicious",
+    "abuse_confidence": 100,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1691 reports, ISP The Shadowserver Foundation, Inc.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "2 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "malicious",
+        "score": 100,
+        "detail": "1691 reports, ISP The Shadowserver Foundation, Inc."
+      }
+    }
+  },
+  "147.185.132.31|1": {
+    "indicator": "147.185.132.31",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 6271 reports, ISP Palo Alto Networks, Inc",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "6271 reports, ISP Palo Alto Networks, Inc"
+      }
+    }
+  },
+  "60.16.201.116|1": {
+    "indicator": "60.16.201.116",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 12,
+    "country": "CN",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 2 reports, ISP China Unicom Liaoning province network",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 12,
+        "detail": "2 reports, ISP China Unicom Liaoning province network"
+      }
+    }
+  },
+  "180.95.238.43|1": {
+    "indicator": "180.95.238.43",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "CN",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 1 reports, ISP China Unicom Gansu province network",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "1 reports, ISP China Unicom Gansu province network"
+      }
+    }
+  },
+  "78.153.140.177|1": {
+    "indicator": "78.153.140.177",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 18,
+    "country": "GB",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 28 reports, ISP HOSTGLOBAL.PLUS LTD",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 18,
+        "detail": "28 reports, ISP HOSTGLOBAL.PLUS LTD"
+      }
+    }
+  },
+  "220.133.16.8|1": {
+    "indicator": "220.133.16.8",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "TW",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Chunghwa Telecom Data Communication Business Group",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Chunghwa Telecom Data Communication Business Group"
+      }
+    }
+  },
+  "172.202.118.20|1": {
+    "indicator": "172.202.118.20",
+    "ioc_type": "ipv4",
+    "verdict": "suspicious",
+    "abuse_confidence": 44,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 660 reports, ISP Microsoft Limited",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "suspicious",
+        "score": 44,
+        "detail": "660 reports, ISP Microsoft Limited"
+      }
+    }
+  },
+  "3.84.47.165|1": {
+    "indicator": "3.84.47.165",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Amazon Data Services Northern Virginia",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Amazon Data Services Northern Virginia"
+      }
+    }
+  },
+  "196.251.85.250|1": {
+    "indicator": "196.251.85.250",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "SC",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP internet-security-cheapyhost",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP internet-security-cheapyhost"
+      }
+    }
+  },
+  "66.249.75.134|1": {
+    "indicator": "66.249.75.134",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 4 reports, ISP Google LLC",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "4 reports, ISP Google LLC"
+      }
+    }
+  },
+  "218.92.0.213|1": {
+    "indicator": "218.92.0.213",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "CN",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP CHINANET jiangsu province network",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP CHINANET jiangsu province network"
+      }
+    }
+  },
+  "14.103.123.19|1": {
+    "indicator": "14.103.123.19",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 21,
+    "country": "CN",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 167 reports, ISP Beijing Volcano Engine Technology Co., Ltd.",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 21,
+        "detail": "167 reports, ISP Beijing Volcano Engine Technology Co., Ltd."
+      }
+    }
+  },
+  "125.162.213.240|1": {
+    "indicator": "125.162.213.240",
+    "ioc_type": "ipv4",
+    "verdict": "suspicious",
+    "abuse_confidence": 47,
+    "country": "ID",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 7 reports, ISP PT TELKOM INDONESIA",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "suspicious",
+        "score": 47,
+        "detail": "7 reports, ISP PT TELKOM INDONESIA"
+      }
+    }
+  },
+  "35.235.244.49|1": {
+    "indicator": "35.235.244.49",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "US",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Google LLC",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Google LLC"
+      }
+    }
+  },
+  "34.124.195.113|1": {
+    "indicator": "34.124.195.113",
+    "ioc_type": "ipv4",
+    "verdict": "clean",
+    "abuse_confidence": 5,
+    "country": "SG",
+    "sources": [
+      "LocalCorpus",
+      "AbuseIPDB"
+    ],
+    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 0 reports, ISP Google LLC",
+    "per_source": {
+      "LocalCorpus": {
+        "verdict": "clean",
+        "score": 5,
+        "detail": "1 alert(s) from this address in our own corpus"
+      },
+      "AbuseIPDB": {
+        "verdict": "clean",
+        "score": 0,
+        "detail": "0 reports, ISP Google LLC"
+      }
+    }
+  }
+}

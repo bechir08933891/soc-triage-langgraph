@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from enum import Enum
 
 # `Optional[str]` means "either text, or nothing at all".
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -201,6 +201,12 @@ class IOCEnrichment(BaseModel):
 
     # A short human-readable explanation.
     detail: str = ""
+
+    # What EACH source said, kept separately so the sources can be COMPARED
+    # instead of merged away. Without this, a high local score hides what the
+    # external database actually reported — and we could not validate one
+    # source against the other.
+    per_source: dict[str, Any] = Field(default_factory=dict)
 
     def headline(self) -> str:
         return f"{self.indicator} -> {self.verdict.value} ({self.abuse_confidence}% abuse)"

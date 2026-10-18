@@ -71,6 +71,24 @@ AGENT_CARD_PATHS = {
     "triage": "/triage/.well-known/agent-card.json",
 }
 
+# =============================================================================
+# THREAT INTELLIGENCE
+# =============================================================================
+
+# True -> make no outbound calls at all. Use this to rehearse on a venue
+# Wi-Fi you do not trust. The system still produces real verdicts from the
+# local corpus reputation.
+OFFLINE_MODE = _flag("SOC_OFFLINE_MODE", default=False)
+
+# Optional. The system works without them. Never written in code — they
+# arrive from the .env file, which Git ignores.
+ABUSEIPDB_KEY = os.getenv("ABUSEIPDB_API_KEY", "")
+VIRUSTOTAL_KEY = os.getenv("VIRUSTOTAL_API_KEY", "")
+
+INTEL_TIMEOUT_S = float(os.getenv("SOC_INTEL_TIMEOUT", "10"))
+
+# Where answers are remembered, so we never ask the same question twice.
+INTEL_CACHE_FILE = DATA_DIR / "intel_cache.json"
 
 def card_url(agent: str) -> str:
     """The card path for one agent. Raises KeyError on a typo, which is good:
