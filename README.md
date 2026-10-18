@@ -171,8 +171,8 @@ soc-triage-langgraph/
 - [x] Step 8 — Deterministic triage logic
 - [x] Step 9 — Real dataset loaded and measured
 - [x] Step 9B — Classifier corrected from real evidence
-- [ ] Step 10 — Triage as an A2A agent
-- [ ] Step 11 — A2A client and the LangGraph node
+- [x] Step 10 — Triage running as a real A2A agent
+- [ ] Step 11 — A2A client wrapped in a LangGraph node
 - [ ] Step 12 — Hunter agent (threat intelligence)
 - [ ] Step 13 — Forensics agent (timeline, lateral movement)
 - [ ] Step 14 — Reporter agent
