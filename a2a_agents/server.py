@@ -27,6 +27,16 @@ from a2a.server.routes.jsonrpc_routes import create_jsonrpc_routes
 # Remembers tasks in memory. Enough for a demo; swap for a database later.
 from a2a.server.tasks import InMemoryTaskStore
 
+# `as HUNTER_PATH` renames on import. BOTH agent files define AGENT_PATH and
+# CARD_PATH, so without renaming, the second import would silently overwrite
+# the first — and hunter requests would be sent to the triage endpoint.
+from a2a_agents.hunter_agent import (
+    AGENT_PATH as HUNTER_PATH,
+    CARD_PATH as HUNTER_CARD_PATH,
+    HUNTER_CARD,
+    HunterAgentExecutor,
+)
+
 from a2a_agents.triage_agent import (
     AGENT_HOST,
     AGENT_PATH,
@@ -46,6 +56,13 @@ AGENTS = [
         "executor": TriageAgentExecutor(),
         "rpc_url": AGENT_PATH,
         "card_url": CARD_PATH,
+    },
+    {
+        "name": "hunter",
+        "card": HUNTER_CARD,
+        "executor": HunterAgentExecutor(),
+        "rpc_url": HUNTER_PATH,
+        "card_url": HUNTER_CARD_PATH,
     },
 ]
 

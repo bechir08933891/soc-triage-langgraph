@@ -69,7 +69,8 @@ A2A_BASE_URL = f"http://{A2A_HOST}:{A2A_PORT}"
 # in the coming steps, and nothing else needs to change.
 AGENT_CARD_PATHS = {
     "triage": "/triage/.well-known/agent-card.json",
-}
+    "hunter": "/hunter/.well-known/agent-card.json",
+} 
 
 # =============================================================================
 # THREAT INTELLIGENCE
@@ -89,6 +90,24 @@ INTEL_TIMEOUT_S = float(os.getenv("SOC_INTEL_TIMEOUT", "10"))
 
 # Where answers are remembered, so we never ask the same question twice.
 INTEL_CACHE_FILE = DATA_DIR / "intel_cache.json"
+
+# =============================================================================
+# THE LANGUAGE MODEL
+# =============================================================================
+
+OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
+
+# gpt-4o-mini was deprecated on 2026-10-14 and shuts down on 2027-01-14.
+# gpt-6-luna is OpenAI's recommended replacement and is cheaper.
+LLM_MODEL = os.getenv("SOC_LLM_MODEL", "gpt-6-luna")
+
+# Temperature 0 means "always pick the most likely next word". It makes the
+# model as repeatable as a language model can be, which matters for a demo a
+# jury may ask you to run twice.
+LLM_TEMPERATURE = float(os.getenv("SOC_LLM_TEMPERATURE", "0"))
+
+LLM_TIMEOUT_S = float(os.getenv("SOC_LLM_TIMEOUT", "45"))
+LLM_MAX_RETRIES = int(os.getenv("SOC_LLM_RETRIES", "2"))
 
 def card_url(agent: str) -> str:
     """The card path for one agent. Raises KeyError on a typo, which is good:

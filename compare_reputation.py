@@ -84,3 +84,61 @@ print("-" * 78)
 for r in rows[:12]:
     print(f"  {r['ip']:<17} hits={r['hits']:<5} ext={r['ext_verdict']:<11}"
           f"({r['ext_score']:>3})  {r['ext_detail'][:40]}")
+
+# =============================================================================
+# DECOMPOSING THE DISAGREEMENTS
+#
+# A raw agreement percentage is not a finding on its own. What matters is WHY
+# the sources disagree. Every disagreement falls into exactly one of three
+# causes, and each has a different operational consequence.
+# =============================================================================
+
+from tools.threat_intel import identify_research_scanner
+
+# How serious each verdict is, as a number, so we can compare two verdicts.
+RANK = {"clean": 0, "unknown": 0, "suspicious": 1, "malicious": 2}
+
+scanners, external_blind, local_blind = [], [], []
+
+for r in disagreements:
+    # Was this address identified as a benign internet-measurement project?
+    org = None
+    result = enrich_ioc(r["ip"], local_hits=r["hits"])
+    external_entry = result.per_source.get("AbuseIPDB", {})
+    org = external_entry.get("org")
+
+    if identify_research_scanner(r["ip"], org):
+        scanners.append(r)
+    elif RANK[r["local_verdict"]] > RANK[r["ext_verdict"]]:
+        # We rated it worse than the external database did: we observed
+        # abuse that was never reported to the crowd-sourced service.
+        external_blind.append(r)
+    else:
+        # The external database rated it worse: real abuse that we only
+        # saw once or twice, too rarely for a frequency score to catch.
+        local_blind.append(r)
+
+print()
+print("=" * 78)
+print("WHY THEY DISAGREE - THE THREE CAUSES")
+print("=" * 78)
+total = len(disagreements)
+print(f"  Benign research scanners  : {len(scanners):>3}  ({len(scanners)/total:.0%})")
+print(f"  External blind spot       : {len(external_blind):>3}  ({len(external_blind)/total:.0%})")
+print(f"  Local blind spot          : {len(local_blind):>3}  ({len(local_blind)/total:.0%})")
+
+alerts_with_ip = sum(1 for a in alerts if a.src_ip)
+blind_alerts = sum(r["hits"] for r in external_blind)
+caught_alerts = sum(r["hits"] for r in local_blind)
+
+print()
+print("  OPERATIONAL CONSEQUENCE")
+print("  " + "-" * 74)
+print(f"  Alerts from addresses the external database did not know about:")
+print(f"      {blind_alerts} of {alerts_with_ip} IP-bearing alerts "
+      f"= {blind_alerts/alerts_with_ip:.1%}")
+print(f"  Alerts only the external database would have caught:")
+print(f"      {caught_alerts} of {alerts_with_ip} "
+      f"= {caught_alerts/alerts_with_ip:.1%}")
+print()
+print("  -> The two sources are NOT redundant. Each covers what the other misses.")

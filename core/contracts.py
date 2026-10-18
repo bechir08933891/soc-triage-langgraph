@@ -387,3 +387,17 @@ class IncidentReport(BaseModel):
     def char_count(self) -> int:
         """Length of the report. Shown in the live log: 'Report (2847 chars)'."""
         return len(self.markdown)
+
+class HuntRequest(BaseModel):
+    """What a caller sends to the hunter agent over A2A.
+
+    The alert alone is not enough. The local reputation needs to know how
+    many times this address appears across the WHOLE corpus, and an agent
+    that only sees one alert cannot know that. So the caller supplies it.
+
+    This is an honest consequence of distributing the system: context that
+    was free inside one process must now be passed explicitly.
+    """
+
+    alert: dict[str, Any]
+    local_hits: int = Field(default=0, ge=0)

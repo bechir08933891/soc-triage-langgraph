@@ -48,6 +48,7 @@ async def call_agent(agent: str, payload_json: str) -> dict[str, Any]:
     """
     observations: list[dict[str, str]] = []
     result_text: str | None = None
+    result_metadata: dict[str, str] = {}
     task_id: str | None = None
     final_state = "UNKNOWN"
 
@@ -102,6 +103,11 @@ async def call_agent(agent: str, payload_json: str) -> dict[str, Any]:
                     for part in artifact.parts:
                         if part.text:
                             result_text = part.text
+                    # The agent attaches token counts and cost here, so the
+                    # orchestrator can report real metrics even though the
+                    # work happened in another process.
+                    if artifact.metadata:
+                        result_metadata = dict(artifact.metadata)
                     observations.append({
                         "stage": "artifact",
                         "detail": artifact.name or "unnamed",
@@ -129,6 +135,7 @@ async def call_agent(agent: str, payload_json: str) -> dict[str, Any]:
 
     return {
         "result_json": result_text,
+        "metadata": result_metadata,
         "task_id": task_id,
         "final_state": final_state,
         "agent_name": card.name,

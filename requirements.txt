@@ -31,3 +31,6 @@ uvicorn>=0.30
 
 # The HTTP client our graph uses to call them.
 httpx>=0.27
+
+# --- The LLM client (hunter, forensics and reporter agents) ---
+langchain-openai>=1.7,<2.0
