@@ -109,24 +109,38 @@ def row_count(path: Path | None = None) -> int:
 
 def alerts_near(timestamp_iso: str, window_minutes: int = 60,
                 limit: int = 40, path: Path | None = None) -> list[dict]:
-    """Every alert within a time window around a moment.
+    """Every alert within a time window around a moment, CENTRED on it.
 
     Note `datetime(timestamp)` on BOTH sides of the comparison. SQLite's
     datetime() returns "2025-03-05 00:00:00" with a SPACE, while we store
     "2025-03-05T00:00:00+00:00" with a T. Comparing the raw strings silently
-    returns nothing, because "T" sorts after " ". Converting both sides fixes
-    it. This cost me a debugging session.
+    returns nothing, because "T" sorts after " ".
+
+    The two-level query exists because of a bug found in testing. With a
+    single `ORDER BY timestamp LIMIT 25`, a dense window returns the OLDEST
+    25 events — the hour before the alert — and cuts the alert itself off.
+
+      inner query : keep the 25 events NEAREST the focus moment
+                    (julianday turns a date into a number, so the absolute
+                     difference is the distance in days; smallest = nearest)
+      outer query : put those 25 back into chronological order, because a
+                    timeline must read forwards in time
     """
     with closing(connect(path)) as connection:
         return [dict(r) for r in connection.execute(
             """
-            SELECT * FROM alerts
-            WHERE datetime(timestamp) BETWEEN datetime(?, ?) AND datetime(?, ?)
+            SELECT * FROM (
+                SELECT * FROM alerts
+                WHERE datetime(timestamp) BETWEEN datetime(?, ?)
+                                              AND datetime(?, ?)
+                ORDER BY ABS(julianday(timestamp) - julianday(?))
+                LIMIT ?
+            )
             ORDER BY datetime(timestamp)
-            LIMIT ?
             """,
             (timestamp_iso, f"-{window_minutes} minutes",
-             timestamp_iso, f"+{window_minutes} minutes", limit),
+             timestamp_iso, f"+{window_minutes} minutes",
+             timestamp_iso, limit),
         )]
 
 

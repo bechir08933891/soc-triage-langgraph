@@ -99,3 +99,55 @@ for event in result.timeline[:12]:
 print()
 print("  ANALYSIS")
 print(f"    {result.analysis}")
+
+print()
+print("=" * 74)
+print("PART 6 - THE DETECTOR ON LABELLED SYNTHETIC INCIDENTS")
+print("=" * 74)
+# Imported here so the earlier parts measure the real corpus only.
+from tools import scenarios
+
+added = scenarios.install()
+print(f"  synthetic rows added : {added}")
+print(f"  database now holds   : {history.row_count()}")
+print()
+print("  EXPECTED: DEMO-LM-* lateral. DEMO-GA-* and DEMO-PS-* spread only.")
+print()
+for demo in scenarios.all_demo_alerts():
+    result, meta = investigate(demo)
+    if result.lateral_movement:
+        verdict = "LATERAL"
+    elif result.horizontal_spread:
+        verdict = "spread"
+    else:
+        verdict = "neither"
+    # The id tells us the right answer, so we can grade ourselves.
+    wanted = "LATERAL" if "-LM-" in demo.id else "spread"
+    mark = "ok " if verdict == wanted else "BAD"
+    print(f"  {mark} {demo.id:<12} {verdict:<8} "
+          f"successes={meta['successes']}  stage={result.attack_stage.value}")
+    reason = meta["lateral_signals"] or meta["spread_signals"]
+    if reason:
+        print(f"        {reason[0]}")
+
+print()
+print("  Every line must start with 'ok'. A 'BAD' on DEMO-GA or DEMO-PS")
+print("  means the detector has become too loose again.")
+
+print()
+print("=" * 74)
+print("PART 7 - WHICH DESCRIPTIONS HAVE NO STAGE KEYWORD")
+print("=" * 74)
+# We extend STAGE_BY_KEYWORD from evidence, not from guessing. This lists
+# exactly what is still unmatched so the list can grow honestly.
+from core.contracts import AttackStage
+
+unmatched = Counter()
+for alert in alerts:
+    result, meta = investigate(alert)
+    if result.attack_stage == AttackStage.UNDETERMINED:
+        unmatched[alert.rule_description] += 1
+
+print(f"  distinct unmatched descriptions : {len(unmatched)}")
+for description, count in unmatched.most_common(15):
+    print(f"    {count:>4}x  {description[:62]}")

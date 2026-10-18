@@ -58,7 +58,9 @@ STAGE_BY_KEYWORD: list[tuple[tuple[str, ...], AttackStage]] = [
     (("powershell", "command executed", "encoded command"), AttackStage.EXECUTION),
     (("authentication success", "session opened", "accepted password"),
      AttackStage.INITIAL_ACCESS),
-    (("non-existent user", "brute force", "invalid user", "400 error"),
+    (("non-existent user", "brute force", "invalid user", "400 error",
+      "authentication failure", "multiple authentication", "failed password",
+      "scan", "sqlinjection", "sql injection", "xss"),
      AttackStage.INITIAL_ACCESS),
 ]
 
