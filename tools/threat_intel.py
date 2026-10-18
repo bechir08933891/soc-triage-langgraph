@@ -56,6 +56,35 @@ SUSPICIOUS_THRESHOLD = 25   # confidence 25-74  -> suspicious
 LOCAL_SUSPICIOUS_HITS = 5
 LOCAL_MALICIOUS_HITS = 50
 
+# =============================================================================
+# KNOWN BENIGN RESEARCH SCANNERS
+#
+# Organisations like the Shadowserver Foundation scan the whole internet to
+# find exposed hosts, then report them FREE to their owners and to national
+# CERTs. They exploit nothing. But recipients who do not recognise them file
+# abuse reports, so crowd-sourced databases rate them as highly malicious.
+#
+# Measured on our own corpus: six addresses in Shadowserver's ARIN-registered
+# 64.62.156.0/24 each carried ~1,600 abuse reports and a 100% confidence
+# score. Acting on that would waste an analyst's time on a benign scan.
+#
+# We match on the ORGANISATION NAME the intel source reports, not on a list
+# of addresses. Organisation names are stable; IP ranges change.
+# =============================================================================
+
+RESEARCH_SCANNER_ORGS = (
+    "shadowserver", "censys", "expanse", "palo alto networks",
+    "internet-measurement", "shodan", "rapid7", "binaryedge", "onyphe",
+    "netsystemsresearch", "stretchoid", "alphastrike", "driftnet",
+    "securitytrails", "bitsight", "arbor observatory", "cyber resilience",
+)
+
+# A fallback for when no organisation name is available (offline mode).
+# This netblock is verified in ARIN as "The Shadowserver Foundation, Inc."
+RESEARCH_SCANNER_NETS = (
+    ("64.62.156.0/24", "The Shadowserver Foundation"),
+)
+
 
 # =============================================================================
 # THE CACHE
@@ -112,6 +141,30 @@ def clear_cache() -> None:
 # SMALL HELPERS
 # =============================================================================
 
+def identify_research_scanner(ip: str, org: str | None) -> str | None:
+    """Return the scanner's name if this address belongs to a known benign
+    internet-measurement project, otherwise None.
+
+    Two ways of recognising one:
+      1. the organisation name reported by the intel source (preferred)
+      2. a verified netblock, used when no organisation name is available
+    """
+    if org:
+        lowered = org.lower()
+        for marker in RESEARCH_SCANNER_ORGS:
+            if marker in lowered:
+                return org
+
+    try:
+        parsed = ipaddress.ip_address(ip)
+    except ValueError:
+        return None
+
+    for cidr, name in RESEARCH_SCANNER_NETS:
+        # `in` on an ip_network asks "is this address inside this range?"
+        if parsed in ipaddress.ip_network(cidr):
+            return name
+    return None
 
 def _score_to_verdict(score: int) -> Verdict:
     """Turn a 0-100 confidence number into one of our verdict words."""
@@ -168,6 +221,7 @@ def _query_abuseipdb(ip: str) -> dict[str, Any] | None:
                 "source": "AbuseIPDB",
                 "score": score,
                 "country": data.get("countryCode"),
+                "org": data.get("isp"),
                 "verdict": _score_to_verdict(score),
                 "detail": (f"{data.get('totalReports', 0)} reports, "
                            f"ISP {data.get('isp', 'unknown')}"),
@@ -313,10 +367,26 @@ def enrich_ioc(ip: str, local_hits: int = 0, use_cache: bool = True) -> IOCEnric
                     "verdict": f["verdict"].value,
                     "score": f["score"],
                     "detail": f["detail"],
+                    "org": f.get("org"),
                 }
                 for f in findings
             },
         )
+
+    # --- Known benign research scanners -------------------------------------
+    # Downgrade, but say WHY in the detail. The original per-source verdicts
+    # are untouched, so an analyst can always see what each source claimed.
+    # This is a correction, not a cover-up.
+    org = next((f.get("org") for f in findings if f.get("org")), None)
+    scanner = identify_research_scanner(ip, org)
+    if scanner:
+        # `model_copy(update=...)` makes a changed copy of a Pydantic object.
+        result = result.model_copy(update={
+            "verdict": Verdict.CLEAN,
+            "abuse_confidence": min(result.abuse_confidence, 20),
+            "detail": f"Known research scanner ({scanner}). " + result.detail,
+            "sources": result.sources + ["ScannerAllowlist"],
+        })
 
     if use_cache:
         # `mode="json"` converts Enums into plain text so they can be saved.

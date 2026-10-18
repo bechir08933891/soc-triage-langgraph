@@ -14,12 +14,14 @@
       "LocalCorpus": {
         "verdict": "malicious",
         "score": 90,
-        "detail": "170 alert(s) from this address in our own corpus"
+        "detail": "170 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP DigitalOcean, LLC"
+        "detail": "0 reports, ISP DigitalOcean, LLC",
+        "org": "DigitalOcean, LLC"
       }
     }
   },
@@ -38,12 +40,14 @@
       "LocalCorpus": {
         "verdict": "malicious",
         "score": 90,
-        "detail": "170 alert(s) from this address in our own corpus"
+        "detail": "170 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Mind Over Matter Solutions PTE LTD"
+        "detail": "0 reports, ISP Mind Over Matter Solutions PTE LTD",
+        "org": "Mind Over Matter Solutions PTE LTD"
       }
     }
   },
@@ -62,12 +66,14 @@
       "LocalCorpus": {
         "verdict": "malicious",
         "score": 90,
-        "detail": "152 alert(s) from this address in our own corpus"
+        "detail": "152 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP PT Cloud Hosting Indonesia"
+        "detail": "0 reports, ISP PT Cloud Hosting Indonesia",
+        "org": "PT Cloud Hosting Indonesia"
       }
     }
   },
@@ -81,17 +87,19 @@
       "LocalCorpus",
       "AbuseIPDB"
     ],
-    "detail": "LocalCorpus: 65 alert(s) from this address in our own corpus | AbuseIPDB: 1219 reports, ISP Beijing Volcano Engine Technology Co., Ltd.",
+    "detail": "LocalCorpus: 65 alert(s) from this address in our own corpus | AbuseIPDB: 1217 reports, ISP Beijing Volcano Engine Technology Co., Ltd.",
     "per_source": {
       "LocalCorpus": {
         "verdict": "malicious",
         "score": 90,
-        "detail": "65 alert(s) from this address in our own corpus"
+        "detail": "65 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "malicious",
         "score": 100,
-        "detail": "1219 reports, ISP Beijing Volcano Engine Technology Co., Ltd."
+        "detail": "1217 reports, ISP Beijing Volcano Engine Technology Co., Ltd.",
+        "org": "Beijing Volcano Engine Technology Co., Ltd."
       }
     }
   },
@@ -110,12 +118,14 @@
       "LocalCorpus": {
         "verdict": "suspicious",
         "score": 50,
-        "detail": "23 alert(s) from this address in our own corpus"
+        "detail": "23 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "suspicious",
         "score": 36,
-        "detail": "76 reports, ISP TECHOFF SRV LIMITED"
+        "detail": "76 reports, ISP TECHOFF SRV LIMITED",
+        "org": "TECHOFF SRV LIMITED"
       }
     }
   },
@@ -134,12 +144,14 @@
       "LocalCorpus": {
         "verdict": "suspicious",
         "score": 50,
-        "detail": "10 alert(s) from this address in our own corpus"
+        "detail": "10 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Chang Way Technologies Co. Limited"
+        "detail": "0 reports, ISP Chang Way Technologies Co. Limited",
+        "org": "Chang Way Technologies Co. Limited"
       }
     }
   },
@@ -158,12 +170,14 @@
       "LocalCorpus": {
         "verdict": "suspicious",
         "score": 50,
-        "detail": "9 alert(s) from this address in our own corpus"
+        "detail": "9 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Chang Way Technologies Co. Limited"
+        "detail": "0 reports, ISP Chang Way Technologies Co. Limited",
+        "org": "Chang Way Technologies Co. Limited"
       }
     }
   },
@@ -182,12 +196,14 @@
       "LocalCorpus": {
         "verdict": "suspicious",
         "score": 50,
-        "detail": "6 alert(s) from this address in our own corpus"
+        "detail": "6 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Wan & Lan Internet Pvt. Ltd."
+        "detail": "0 reports, ISP Wan & Lan Internet Pvt. Ltd.",
+        "org": "Wan & Lan Internet Pvt. Ltd."
       }
     }
   },
@@ -206,12 +222,14 @@
       "LocalCorpus": {
         "verdict": "suspicious",
         "score": 50,
-        "detail": "6 alert(s) from this address in our own corpus"
+        "detail": "6 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Neterra Ltd."
+        "detail": "0 reports, ISP Neterra Ltd.",
+        "org": "Neterra Ltd."
       }
     }
   },
@@ -230,36 +248,41 @@
       "LocalCorpus": {
         "verdict": "suspicious",
         "score": 50,
-        "detail": "5 alert(s) from this address in our own corpus"
+        "detail": "5 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Alibaba Cloud (Singapore) Private Limited"
+        "detail": "0 reports, ISP Alibaba Cloud (Singapore) Private Limited",
+        "org": "Alibaba Cloud (Singapore) Private Limited"
       }
     }
   },
   "162.142.125.46|5": {
     "indicator": "162.142.125.46",
     "ioc_type": "ipv4",
-    "verdict": "suspicious",
-    "abuse_confidence": 50,
+    "verdict": "clean",
+    "abuse_confidence": 20,
     "country": "US",
     "sources": [
       "LocalCorpus",
-      "AbuseIPDB"
+      "AbuseIPDB",
+      "ScannerAllowlist"
     ],
-    "detail": "LocalCorpus: 5 alert(s) from this address in our own corpus | AbuseIPDB: 4 reports, ISP Censys, Inc.",
+    "detail": "Known research scanner (Censys, Inc.). LocalCorpus: 5 alert(s) from this address in our own corpus | AbuseIPDB: 4 reports, ISP Censys, Inc.",
     "per_source": {
       "LocalCorpus": {
         "verdict": "suspicious",
         "score": 50,
-        "detail": "5 alert(s) from this address in our own corpus"
+        "detail": "5 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "4 reports, ISP Censys, Inc."
+        "detail": "4 reports, ISP Censys, Inc.",
+        "org": "Censys, Inc."
       }
     }
   },
@@ -278,12 +301,14 @@
       "LocalCorpus": {
         "verdict": "suspicious",
         "score": 50,
-        "detail": "5 alert(s) from this address in our own corpus"
+        "detail": "5 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 2,
-        "detail": "8 reports, ISP Intelligence Hosting LLC"
+        "detail": "8 reports, ISP Intelligence Hosting LLC",
+        "org": "Intelligence Hosting LLC"
       }
     }
   },
@@ -302,12 +327,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "4 alert(s) from this address in our own corpus"
+        "detail": "4 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 18,
-        "detail": "34 reports, ISP HOSTGLOBAL.PLUS LTD"
+        "detail": "34 reports, ISP HOSTGLOBAL.PLUS LTD",
+        "org": "HOSTGLOBAL.PLUS LTD"
       }
     }
   },
@@ -326,12 +353,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "3 alert(s) from this address in our own corpus"
+        "detail": "3 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP internet-security-Nybula"
+        "detail": "0 reports, ISP internet-security-Nybula",
+        "org": "internet-security-Nybula"
       }
     }
   },
@@ -350,12 +379,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "3 alert(s) from this address in our own corpus"
+        "detail": "3 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Amazon Technologies Inc."
+        "detail": "0 reports, ISP Amazon Technologies Inc.",
+        "org": "Amazon Technologies Inc."
       }
     }
   },
@@ -374,12 +405,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "3 alert(s) from this address in our own corpus"
+        "detail": "3 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "3494 reports, ISP Google LLC"
+        "detail": "3494 reports, ISP Google LLC",
+        "org": "Google LLC"
       }
     }
   },
@@ -398,12 +431,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "3 alert(s) from this address in our own corpus"
+        "detail": "3 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP HostUS Solutions LLC"
+        "detail": "0 reports, ISP HostUS Solutions LLC",
+        "org": "HostUS Solutions LLC"
       }
     }
   },
@@ -422,12 +457,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "3 alert(s) from this address in our own corpus"
+        "detail": "3 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "3567 reports, ISP Google LLC"
+        "detail": "3567 reports, ISP Google LLC",
+        "org": "Google LLC"
       }
     }
   },
@@ -446,12 +483,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "3 alert(s) from this address in our own corpus"
+        "detail": "3 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Chunghwa Telecom Data Communication Business Group"
+        "detail": "0 reports, ISP Chunghwa Telecom Data Communication Business Group",
+        "org": "Chunghwa Telecom Data Communication Business Group"
       }
     }
   },
@@ -470,12 +509,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "3 alert(s) from this address in our own corpus"
+        "detail": "3 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP INVITE Systems SRL"
+        "detail": "0 reports, ISP INVITE Systems SRL",
+        "org": "INVITE Systems SRL"
       }
     }
   },
@@ -489,17 +530,19 @@
       "LocalCorpus",
       "AbuseIPDB"
     ],
-    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 3675 reports, ISP DMZHOST",
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 3674 reports, ISP DMZHOST",
     "per_source": {
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "malicious",
         "score": 100,
-        "detail": "3675 reports, ISP DMZHOST"
+        "detail": "3674 reports, ISP DMZHOST",
+        "org": "DMZHOST"
       }
     }
   },
@@ -518,12 +561,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 2,
-        "detail": "2 reports, ISP TECHOFF SRV LIMITED"
+        "detail": "2 reports, ISP TECHOFF SRV LIMITED",
+        "org": "TECHOFF SRV LIMITED"
       }
     }
   },
@@ -537,41 +582,46 @@
       "LocalCorpus",
       "AbuseIPDB"
     ],
-    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1206 reports, ISP TECHOFF SRV LIMITED",
+    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1207 reports, ISP TECHOFF SRV LIMITED",
     "per_source": {
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "malicious",
         "score": 100,
-        "detail": "1206 reports, ISP TECHOFF SRV LIMITED"
+        "detail": "1207 reports, ISP TECHOFF SRV LIMITED",
+        "org": "TECHOFF SRV LIMITED"
       }
     }
   },
   "64.62.156.82|2": {
     "indicator": "64.62.156.82",
     "ioc_type": "ipv4",
-    "verdict": "malicious",
-    "abuse_confidence": 100,
+    "verdict": "clean",
+    "abuse_confidence": 20,
     "country": "US",
     "sources": [
       "LocalCorpus",
-      "AbuseIPDB"
+      "AbuseIPDB",
+      "ScannerAllowlist"
     ],
-    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1767 reports, ISP The Shadowserver Foundation, Inc.",
+    "detail": "Known research scanner (The Shadowserver Foundation, Inc.). LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1765 reports, ISP The Shadowserver Foundation, Inc.",
     "per_source": {
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "malicious",
         "score": 100,
-        "detail": "1767 reports, ISP The Shadowserver Foundation, Inc."
+        "detail": "1765 reports, ISP The Shadowserver Foundation, Inc.",
+        "org": "The Shadowserver Foundation, Inc."
       }
     }
   },
@@ -590,12 +640,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 2,
-        "detail": "1 reports, ISP TECHOFF SRV LIMITED"
+        "detail": "1 reports, ISP TECHOFF SRV LIMITED",
+        "org": "TECHOFF SRV LIMITED"
       }
     }
   },
@@ -614,60 +666,68 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 2,
-        "detail": "1 reports, ISP Zhenjiang Guangyuan Network Technology Co., Ltd."
+        "detail": "1 reports, ISP Zhenjiang Guangyuan Network Technology Co., Ltd.",
+        "org": "Zhenjiang Guangyuan Network Technology Co., Ltd."
       }
     }
   },
   "64.62.156.89|2": {
     "indicator": "64.62.156.89",
     "ioc_type": "ipv4",
-    "verdict": "malicious",
-    "abuse_confidence": 100,
+    "verdict": "clean",
+    "abuse_confidence": 20,
     "country": "US",
     "sources": [
       "LocalCorpus",
-      "AbuseIPDB"
+      "AbuseIPDB",
+      "ScannerAllowlist"
     ],
-    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1594 reports, ISP The Shadowserver Foundation, Inc.",
+    "detail": "Known research scanner (The Shadowserver Foundation, Inc.). LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1593 reports, ISP The Shadowserver Foundation, Inc.",
     "per_source": {
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "malicious",
         "score": 100,
-        "detail": "1594 reports, ISP The Shadowserver Foundation, Inc."
+        "detail": "1593 reports, ISP The Shadowserver Foundation, Inc.",
+        "org": "The Shadowserver Foundation, Inc."
       }
     }
   },
   "64.62.156.90|2": {
     "indicator": "64.62.156.90",
     "ioc_type": "ipv4",
-    "verdict": "malicious",
-    "abuse_confidence": 100,
+    "verdict": "clean",
+    "abuse_confidence": 20,
     "country": "US",
     "sources": [
       "LocalCorpus",
-      "AbuseIPDB"
+      "AbuseIPDB",
+      "ScannerAllowlist"
     ],
-    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1573 reports, ISP The Shadowserver Foundation, Inc.",
+    "detail": "Known research scanner (The Shadowserver Foundation, Inc.). LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1572 reports, ISP The Shadowserver Foundation, Inc.",
     "per_source": {
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "malicious",
         "score": 100,
-        "detail": "1573 reports, ISP The Shadowserver Foundation, Inc."
+        "detail": "1572 reports, ISP The Shadowserver Foundation, Inc.",
+        "org": "The Shadowserver Foundation, Inc."
       }
     }
   },
@@ -686,12 +746,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP RECYBER PROJECT NETBLOCK"
+        "detail": "0 reports, ISP RECYBER PROJECT NETBLOCK",
+        "org": "RECYBER PROJECT NETBLOCK"
       }
     }
   },
@@ -710,84 +772,95 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Google LLC"
+        "detail": "0 reports, ISP Google LLC",
+        "org": "Google LLC"
       }
     }
   },
   "64.62.156.30|2": {
     "indicator": "64.62.156.30",
     "ioc_type": "ipv4",
-    "verdict": "malicious",
-    "abuse_confidence": 100,
+    "verdict": "clean",
+    "abuse_confidence": 20,
     "country": "US",
     "sources": [
       "LocalCorpus",
-      "AbuseIPDB"
+      "AbuseIPDB",
+      "ScannerAllowlist"
     ],
-    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1690 reports, ISP The Shadowserver Foundation, Inc.",
+    "detail": "Known research scanner (The Shadowserver Foundation, Inc.). LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1690 reports, ISP The Shadowserver Foundation, Inc.",
     "per_source": {
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "malicious",
         "score": 100,
-        "detail": "1690 reports, ISP The Shadowserver Foundation, Inc."
+        "detail": "1690 reports, ISP The Shadowserver Foundation, Inc.",
+        "org": "The Shadowserver Foundation, Inc."
       }
     }
   },
   "64.62.156.35|2": {
     "indicator": "64.62.156.35",
     "ioc_type": "ipv4",
-    "verdict": "malicious",
-    "abuse_confidence": 100,
+    "verdict": "clean",
+    "abuse_confidence": 20,
     "country": "US",
     "sources": [
       "LocalCorpus",
-      "AbuseIPDB"
+      "AbuseIPDB",
+      "ScannerAllowlist"
     ],
-    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1664 reports, ISP The Shadowserver Foundation, Inc.",
+    "detail": "Known research scanner (The Shadowserver Foundation, Inc.). LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1664 reports, ISP The Shadowserver Foundation, Inc.",
     "per_source": {
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "malicious",
         "score": 100,
-        "detail": "1664 reports, ISP The Shadowserver Foundation, Inc."
+        "detail": "1664 reports, ISP The Shadowserver Foundation, Inc.",
+        "org": "The Shadowserver Foundation, Inc."
       }
     }
   },
   "64.62.156.26|2": {
     "indicator": "64.62.156.26",
     "ioc_type": "ipv4",
-    "verdict": "malicious",
-    "abuse_confidence": 100,
+    "verdict": "clean",
+    "abuse_confidence": 20,
     "country": "US",
     "sources": [
       "LocalCorpus",
-      "AbuseIPDB"
+      "AbuseIPDB",
+      "ScannerAllowlist"
     ],
-    "detail": "LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1691 reports, ISP The Shadowserver Foundation, Inc.",
+    "detail": "Known research scanner (The Shadowserver Foundation, Inc.). LocalCorpus: 2 alert(s) from this address in our own corpus | AbuseIPDB: 1691 reports, ISP The Shadowserver Foundation, Inc.",
     "per_source": {
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "2 alert(s) from this address in our own corpus"
+        "detail": "2 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "malicious",
         "score": 100,
-        "detail": "1691 reports, ISP The Shadowserver Foundation, Inc."
+        "detail": "1691 reports, ISP The Shadowserver Foundation, Inc.",
+        "org": "The Shadowserver Foundation, Inc."
       }
     }
   },
@@ -799,19 +872,22 @@
     "country": "US",
     "sources": [
       "LocalCorpus",
-      "AbuseIPDB"
+      "AbuseIPDB",
+      "ScannerAllowlist"
     ],
-    "detail": "LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 6271 reports, ISP Palo Alto Networks, Inc",
+    "detail": "Known research scanner (Palo Alto Networks, Inc). LocalCorpus: 1 alert(s) from this address in our own corpus | AbuseIPDB: 6272 reports, ISP Palo Alto Networks, Inc",
     "per_source": {
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "6271 reports, ISP Palo Alto Networks, Inc"
+        "detail": "6272 reports, ISP Palo Alto Networks, Inc",
+        "org": "Palo Alto Networks, Inc"
       }
     }
   },
@@ -830,12 +906,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 12,
-        "detail": "2 reports, ISP China Unicom Liaoning province network"
+        "detail": "2 reports, ISP China Unicom Liaoning province network",
+        "org": "China Unicom Liaoning province network"
       }
     }
   },
@@ -854,12 +932,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "1 reports, ISP China Unicom Gansu province network"
+        "detail": "1 reports, ISP China Unicom Gansu province network",
+        "org": "China Unicom Gansu province network"
       }
     }
   },
@@ -878,12 +958,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 18,
-        "detail": "28 reports, ISP HOSTGLOBAL.PLUS LTD"
+        "detail": "28 reports, ISP HOSTGLOBAL.PLUS LTD",
+        "org": "HOSTGLOBAL.PLUS LTD"
       }
     }
   },
@@ -902,12 +984,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Chunghwa Telecom Data Communication Business Group"
+        "detail": "0 reports, ISP Chunghwa Telecom Data Communication Business Group",
+        "org": "Chunghwa Telecom Data Communication Business Group"
       }
     }
   },
@@ -926,12 +1010,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "suspicious",
         "score": 44,
-        "detail": "660 reports, ISP Microsoft Limited"
+        "detail": "660 reports, ISP Microsoft Limited",
+        "org": "Microsoft Limited"
       }
     }
   },
@@ -950,12 +1036,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Amazon Data Services Northern Virginia"
+        "detail": "0 reports, ISP Amazon Data Services Northern Virginia",
+        "org": "Amazon Data Services Northern Virginia"
       }
     }
   },
@@ -974,12 +1062,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP internet-security-cheapyhost"
+        "detail": "0 reports, ISP internet-security-cheapyhost",
+        "org": "internet-security-cheapyhost"
       }
     }
   },
@@ -998,12 +1088,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "4 reports, ISP Google LLC"
+        "detail": "4 reports, ISP Google LLC",
+        "org": "Google LLC"
       }
     }
   },
@@ -1022,12 +1114,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP CHINANET jiangsu province network"
+        "detail": "0 reports, ISP CHINANET jiangsu province network",
+        "org": "CHINANET jiangsu province network"
       }
     }
   },
@@ -1046,12 +1140,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 21,
-        "detail": "167 reports, ISP Beijing Volcano Engine Technology Co., Ltd."
+        "detail": "167 reports, ISP Beijing Volcano Engine Technology Co., Ltd.",
+        "org": "Beijing Volcano Engine Technology Co., Ltd."
       }
     }
   },
@@ -1070,12 +1166,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "suspicious",
         "score": 47,
-        "detail": "7 reports, ISP PT TELKOM INDONESIA"
+        "detail": "7 reports, ISP PT TELKOM INDONESIA",
+        "org": "PT TELKOM INDONESIA"
       }
     }
   },
@@ -1094,12 +1192,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Google LLC"
+        "detail": "0 reports, ISP Google LLC",
+        "org": "Google LLC"
       }
     }
   },
@@ -1118,12 +1218,14 @@
       "LocalCorpus": {
         "verdict": "clean",
         "score": 5,
-        "detail": "1 alert(s) from this address in our own corpus"
+        "detail": "1 alert(s) from this address in our own corpus",
+        "org": null
       },
       "AbuseIPDB": {
         "verdict": "clean",
         "score": 0,
-        "detail": "0 reports, ISP Google LLC"
+        "detail": "0 reports, ISP Google LLC",
+        "org": "Google LLC"
       }
     }
   }
