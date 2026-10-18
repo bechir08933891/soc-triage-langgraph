@@ -4,23 +4,39 @@ tools/reporter.py
 Assemble the findings of the other agents into one incident report, and
 decide escalation.
 
-THE RULE THIS FILE EXISTS TO ENFORCE, from finding 15:
+TWO RULES THIS FILE EXISTS TO ENFORCE, both learned by measuring a mistake.
+
+RULE 1 (finding 15) - THE DECISION IS A UNION, NOT A VOTE.
 
     triage, seeing one alert    : NormalActivity / Info -> auto-close
     forensics, seeing the window: LateralMovement       -> escalate
 
-    Averaging them loses the intrusion. Letting triage decide loses it too:
-    triage auto-closed all five alerts of a confirmed incident.
+  Averaging them loses the intrusion. Letting triage decide loses it too:
+  triage auto-closed all five alerts of a confirmed incident. So the
+  decision is the union of the signals, and when the agents disagree the
+  report SAYS SO - the quiet agent is usually right about the single alert
+  and wrong about the set.
 
-So the decision is the UNION of every agent's escalation signals, and when
-the agents disagree the report SAYS SO. The disagreement is information,
-not noise to be reconciled - the quiet agent is usually right about the
-single alert and wrong about the set.
+RULE 2 (finding 19) - REPUTATION IS NOT IMPACT.
+
+  The first version of this gate escalated 567 of 738 alerts (76.8%),
+  because 561 of them carried a source address the corpus had seen more
+  than fifty times. That verdict is correct and useless on its own: a
+  known-malicious host knocking on a door is the internet. So signals are
+  split by what they can do ALONE:
+
+    TRIGGERING     escalates by itself
+    CORROBORATING  reaches the report, but does not open a ticket
+
+  Reputation is corroborating. It regains triggering force only together
+  with a recorded successful authentication by that actor, which is the
+  difference between an attempt and an intrusion.
 
 The language model writes the executive summary and nothing else. It is
 structurally unable to change the decision: `recommend_escalation` runs
-before the model is contacted, and its output is passed to the model as a
-fact that the prompt forbids it to argue with.
+before the model is contacted, and `ReportSummary` has no field for a
+verdict. Verified identical across a working model, an injected
+LLMUnavailable, and an injected KeyError.
 """
 
 from __future__ import annotations
@@ -43,16 +59,25 @@ from core.models import Alert
 
 
 # =============================================================================
-# THE POLICY - every threshold in one place
+# THE POLICY - every threshold and every choice in one place
 # =============================================================================
 
 # A hunter threat score at or above this escalates on its own.
 THREAT_SCORE_ESCALATE = 70
 
+# Which policy the system actually uses. The alternatives are kept callable
+# so test_gate.py can measure all three on the real corpus rather than
+# asserting that this one is best.
+#
+#   "any"          every signal escalates, reputation included -> 76.8%
+#   "corroborate"  reputation escalates only alongside another signal
+#   "triggering"   reputation never escalates, only informs
+POLICY_DEFAULT = "corroborate"
+
 # Kill-chain stages that mean the attacker is already INSIDE. Reconnaissance
 # and initial access are deliberately NOT here: the internet knocks on doors
 # all day, and escalating every knock is how an analyst learns to ignore the
-# queue.
+# queue - which is the whole failure finding 19 records.
 LATE_STAGES = {
     AttackStage.LATERAL_MOVEMENT,
     AttackStage.PRIVILEGE_ESCALATION,
@@ -72,48 +97,86 @@ NON_THREAT_TYPES = {AttackType.NORMAL_ACTIVITY, AttackType.VULNERABILITY}
 
 def recommend_escalation(triage: TriageResult | None,
                          hunt: HuntResult | None,
-                         forensics: ForensicsResult | None) -> dict:
-    """Escalate if ANY agent raises a signal. Record which ones did.
+                         forensics: ForensicsResult | None,
+                         policy: str = POLICY_DEFAULT) -> dict:
+    """Decide escalation, and record exactly which signals caused it.
 
-    Every `if` below is independent on purpose. This is a union, not a vote
-    and not an average: one agent seeing lateral movement is enough, even
-    when the other two see nothing, because each was asked a DIFFERENT
-    question and a negative answer to one question is not evidence about
-    another.
+    Signals are collected into two lists:
+
+      TRIGGERING     each one is sufficient on its own
+      CORROBORATING  supporting evidence; not sufficient alone
 
     `overridden_triage` is the number that matters most. It is True when the
     system escalates something triage would have closed - which is the
     entire justification for having more than one agent.
     """
-    signals: list[str] = []
+    triggering: list[str] = []
+    corroborating: list[str] = []
 
+    # --- TRIGGERING: evidence of severity, progression, or success --------
     if triage and triage.escalate_to_tier2:
-        signals.append(f"triage: {triage.severity.value} severity")
-    if hunt and hunt.worst_verdict is Verdict.MALICIOUS:
-        signals.append("hunter: a malicious indicator")
+        triggering.append(f"triage: {triage.severity.value} severity")
     if hunt and hunt.threat_score >= THREAT_SCORE_ESCALATE:
-        signals.append(f"hunter: threat score {hunt.threat_score}/100")
+        triggering.append(f"hunter: threat score {hunt.threat_score}/100")
     if forensics and forensics.lateral_movement:
-        signals.append("forensics: lateral movement")
+        triggering.append("forensics: lateral movement")
     if forensics and forensics.attack_stage in LATE_STAGES:
-        signals.append(f"forensics: stage {forensics.attack_stage.value}")
+        triggering.append(f"forensics: stage {forensics.attack_stage.value}")
+
+    # --- REPUTATION: triggering only WITH impact --------------------------
+    malicious = bool(hunt and hunt.worst_verdict is Verdict.MALICIOUS)
+    successes = forensics.actor_successes if forensics else 0
+
+    if malicious and successes > 0:
+        # A known-bad source that actually authenticated. This is an
+        # incident, and it is the one combination that makes reputation
+        # sufficient on its own.
+        triggering.append(
+            f"hunter+forensics: a malicious source with {successes} "
+            f"successful authentication(s)")
+    elif malicious:
+        # A known-bad source that knocked and got nowhere. True, reported,
+        # and not a reason to wake anybody.
+        corroborating.append("hunter: a malicious indicator")
+
+    # --- APPLY THE POLICY -------------------------------------------------
+    if policy == "any":
+        # The original gate. Kept so the 76.8% figure stays reproducible.
+        signals = triggering + corroborating
+    elif policy == "triggering":
+        signals = triggering
+    elif policy == "corroborate":
+        # Corroborating signals are reported WITH the others when something
+        # triggered, and ignored when nothing did.
+        signals = (triggering + corroborating) if triggering else []
+    else:
+        raise ValueError(f"unknown policy {policy!r}")
 
     # If nothing fired, say WHY it was safe to close, rather than closing in
-    # silence. "No signal" and "positively identified as not an attack" look
-    # the same in a queue and mean different things.
+    # silence. Three different reasons, and they are not interchangeable.
     suppressed = None
     if not signals and forensics and \
             forensics.attack_stage is AttackStage.NOT_APPLICABLE:
         suppressed = "forensics: not attack activity"
     elif not signals and triage and triage.attack_type in NON_THREAT_TYPES:
         suppressed = f"triage: {triage.attack_type.value}"
+    elif not signals and corroborating:
+        suppressed = "reputation alone, with no evidence of impact"
+    elif not signals:
+        # A fourth branch so `suppressed` is never None when nothing fired.
+        # "Closed, and here is why" must hold for EVERY closed alert, even
+        # when the reason is simply that no agent found anything.
+        suppressed = "no triggering signal from any agent"
 
     escalate = bool(signals)
     triage_alone = bool(triage and triage.escalate_to_tier2)
     return {
         "escalate": escalate,
         "signals": signals,
+        "triggering": triggering,
+        "corroborating": corroborating,
         "suppressed": suppressed,
+        "policy": policy,
         "triage_alone_would_escalate": triage_alone,
         "overridden_triage": escalate and not triage_alone,
     }
@@ -125,6 +188,10 @@ def agreement_rows(triage, hunt, forensics) -> list[tuple[str, str, str]]:
     An agent that did not answer gets NO row. An empty row would read as
     "it looked and found nothing", which is a different statement from
     "it never ran".
+
+    The hunter's column says "corroborating" rather than "escalate" when it
+    found a malicious indicator without a success, because that is precisely
+    what the gate does with it.
     """
     rows = []
     if triage:
@@ -132,10 +199,15 @@ def agreement_rows(triage, hunt, forensics) -> list[tuple[str, str, str]]:
                      f"{triage.attack_type.value} / {triage.severity.value}",
                      "escalate" if triage.escalate_to_tier2 else "auto-close"))
     if hunt:
+        if hunt.threat_score >= THREAT_SCORE_ESCALATE:
+            verdict = "escalate"
+        elif hunt.worst_verdict is Verdict.MALICIOUS:
+            verdict = "corroborating"
+        else:
+            verdict = "no signal"
         rows.append(("hunter (intel + MITRE)",
                      f"{hunt.worst_verdict.value}, score {hunt.threat_score}/100",
-                     "escalate" if hunt.threat_score >= THREAT_SCORE_ESCALATE
-                     or hunt.worst_verdict is Verdict.MALICIOUS else "no signal"))
+                     verdict))
     if forensics:
         pattern = ("lateral movement" if forensics.lateral_movement
                    else "horizontal spread" if forensics.horizontal_spread
@@ -150,11 +222,11 @@ def agreement_rows(triage, hunt, forensics) -> list[tuple[str, str, str]]:
 def conflict_note(rows, decision) -> str:
     """The sentence that makes this a multi-agent report and not a summary."""
     verdicts = {row[2] for row in rows}
+    quiet_words = {"auto-close", "no signal", "corroborating"}
     # `&` on two sets is the intersection: the values present in both.
-    if "escalate" in verdicts and {"auto-close", "no signal"} & verdicts:
+    if "escalate" in verdicts and quiet_words & verdicts:
         who = [r[0].split(" (")[0] for r in rows if r[2] == "escalate"]
-        quiet = [r[0].split(" (")[0] for r in rows
-                 if r[2] in ("auto-close", "no signal")]
+        quiet = [r[0].split(" (")[0] for r in rows if r[2] in quiet_words]
         return (f"THE AGENTS DISAGREE. {', '.join(who)} escalate(s); "
                 f"{', '.join(quiet)} would not. The disagreement is reported "
                 f"rather than averaged, because the quiet agents are not "
@@ -163,6 +235,11 @@ def conflict_note(rows, decision) -> str:
                 f"signals, never one agent's vote.")
     if decision["escalate"]:
         return "All agents that produced a signal agree on escalation."
+    if decision["corroborating"]:
+        return ("No agent produced a triggering signal. Reputation evidence "
+                "is present but shows no impact, so it is recorded here and "
+                "not escalated - a known-malicious source that achieved "
+                "nothing is the threat landscape, not an incident.")
     return "No agent produced an escalation signal. Auto-closing at Tier 1."
 
 
@@ -191,15 +268,18 @@ def deterministic_summary(alert, triage, hunt, forensics, decision) -> str:
         own = sum(1 for e in forensics.timeline if e.same_actor)
         parts.append(f"Context: {forensics.attack_stage.value}, "
                      f"{own} of {len(forensics.timeline)} nearby events "
-                     f"attributable to this actor.")
+                     f"attributable to this actor, "
+                     f"{forensics.actor_successes} successful "
+                     f"authentication(s).")
     parts.append("ESCALATE to Tier 2." if decision["escalate"]
                  else "Auto-closing at Tier 1.")
     return " ".join(parts)
 
 
-# The third rule is the point of this prompt. A model asked to summarise
-# conflicting findings will naturally smooth them into one confident story,
-# which would destroy exactly the signal finding 15 identified.
+# The third and fourth rules are the point of this prompt. A model asked to
+# summarise conflicting findings will smooth them into one confident story,
+# destroying exactly the signal finding 15 identified - and a model shown a
+# "malicious" verdict will reach for alarm whatever the decision says.
 SUMMARY_SYSTEM_PROMPT = (
     "You are a SOC shift lead writing the executive summary of an incident "
     "report. You are given VERIFIED FINDINGS from three deterministic "
@@ -209,6 +289,9 @@ SUMMARY_SYSTEM_PROMPT = (
     "- Do NOT change or argue with the escalation decision. State it.\n"
     "- If the agents disagree, SAY SO in one sentence. Do not smooth it "
     "over: the disagreement is information a reader needs.\n"
+    "- A malicious source address with no successful authentication is NOT "
+    "an incident. If the decision is to auto-close, do not write as though "
+    "it should not have been.\n"
     "- 2 to 4 sentences. Plain language, for someone deciding what to do "
     "next.\n"
     "- confidence is 0-100: how well the findings support the decision."
@@ -247,9 +330,12 @@ def facts_for_prompt(alert, triage, hunt, forensics, decision, rows) -> str:
     for name, finding, verdict in rows:
         lines.append(f"  {name:<28} {finding}  ->  {verdict}")
     lines += ["", "DECISION (already made, do not change it)",
-              f"  escalate : {decision['escalate']}"]
-    for signal in decision["signals"]:
-        lines.append(f"  signal   : {signal}")
+              f"  escalate : {decision['escalate']}",
+              f"  policy   : {decision['policy']}"]
+    for signal in decision["triggering"]:
+        lines.append(f"  TRIGGERING    : {signal}")
+    for signal in decision["corroborating"]:
+        lines.append(f"  corroborating : {signal}")
     if decision["suppressed"]:
         lines.append(f"  suppressed by : {decision['suppressed']}")
     if decision["overridden_triage"]:
@@ -298,21 +384,31 @@ def build_markdown(alert, triage, hunt, forensics, decision, rows,
         "",
         "## Escalation decision",
         "",
+        f"Policy: `{decision['policy']}`",
+        "",
     ]
-    if decision["signals"]:
-        for signal in decision["signals"]:
+    if decision["triggering"]:
+        lines.append("**Triggering signals** — each sufficient on its own:")
+        for signal in decision["triggering"]:
             lines.append(f"- {signal}")
-    else:
-        lines.append("- no escalation signal from any agent")
+        lines.append("")
+    if decision["corroborating"]:
+        lines.append("**Corroborating evidence** — reported, not sufficient "
+                     "to escalate alone:")
+        for signal in decision["corroborating"]:
+            lines.append(f"- {signal}")
+        lines.append("")
+    if not decision["signals"]:
+        lines.append("- no triggering signal from any agent")
         if decision["suppressed"]:
             lines.append(f"- suppressed by {decision['suppressed']}")
+        lines.append("")
     if decision["overridden_triage"]:
-        lines += ["",
-                  "> **Triage alone would have auto-closed this alert.** The "
+        lines += ["> **Triage alone would have auto-closed this alert.** The "
                   "decision comes from the union of all agents' signals, not "
-                  "from the triage severity."]
+                  "from the triage severity.", ""]
 
-    lines += ["", "## The alert", ""]
+    lines += ["## The alert", ""]
     lines += _table(["field", "value"], [
         ["id", alert.id],
         ["timestamp", f"{alert.timestamp:%Y-%m-%d %H:%M:%S} UTC"],
@@ -357,6 +453,8 @@ def build_markdown(alert, triage, hunt, forensics, decision, rows,
                   f"- attack stage: **{forensics.attack_stage.value}**",
                   f"- lateral movement: **{forensics.lateral_movement}**",
                   f"- horizontal spread: **{forensics.horizontal_spread}**",
+                  f"- successful authentications by this actor: "
+                  f"**{forensics.actor_successes}**",
                   f"- hosts involved: {', '.join(forensics.affected_hosts) or 'none'}",
                   f"- timeline: {len(forensics.timeline)} event(s), "
                   f"{own} attributable to this actor, "
@@ -377,7 +475,7 @@ def build_markdown(alert, triage, hunt, forensics, decision, rows,
               "|---|---|",
               "| attack type, severity, escalation signals | deterministic rules |",
               "| indicator verdicts, MITRE techniques | tools and external sources |",
-              "| timeline, actor split, attack stage | database queries and rules |",
+              "| timeline, actor split, attack stage, successes | database queries and rules |",
               "| the prose in this report | " + summary_source + " |",
               "",
               "No verdict in this report was produced by a language model.",
@@ -388,7 +486,8 @@ def build_markdown(alert, triage, hunt, forensics, decision, rows,
 def report(alert: Alert,
            triage: TriageResult | None = None,
            hunt: HuntResult | None = None,
-           forensics: ForensicsResult | None = None
+           forensics: ForensicsResult | None = None,
+           policy: str = POLICY_DEFAULT
            ) -> tuple[IncidentReport, dict]:
     """Decide, then write. In that order, always.
 
@@ -398,13 +497,17 @@ def report(alert: Alert,
     decision is identical across a successful call, an LLMUnavailable, and
     an injected KeyError.
     """
-    decision = recommend_escalation(triage, hunt, forensics)
+    decision = recommend_escalation(triage, hunt, forensics, policy=policy)
     rows = agreement_rows(triage, hunt, forensics)
 
     meta: dict = {"llm_used": False, "usage": None, "fallback_reason": None,
                   "skipped_reason": None, "confidence": None,
                   "escalate": decision["escalate"],
                   "signals": decision["signals"],
+                  "triggering": decision["triggering"],
+                  "corroborating": decision["corroborating"],
+                  "policy": decision["policy"],
+                  "suppressed": decision["suppressed"],
                   "overridden_triage": decision["overridden_triage"],
                   "missing": [name for name, value in
                               (("triage", triage), ("hunt", hunt),

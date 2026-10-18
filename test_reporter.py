@@ -1,16 +1,32 @@
 """
 test_reporter.py
 ================
-Tests the reporter's two guarantees:
+The reporter's three guarantees:
 
-  1. THE DECISION IS MODEL-INDEPENDENT. It must be identical across a
-     working model, an LLMUnavailable, and an unexpected crash.
+  1. THE DECISION IS MODEL-INDEPENDENT. Identical across a working model,
+     an LLMUnavailable, and an unexpected crash.
   2. PARTIAL INPUT STILL PRODUCES A REPORT, and names what is missing.
+  3. REPUTATION ESCALATES ONLY WITH IMPACT (finding 19) - including the
+     branch the real corpus cannot exercise.
 
-Plus the measurement that justifies the whole architecture: how many alerts
-the combined gate escalates that triage alone would have closed.
+Part 5 exists because of a gap the corpus measurement exposed: 561 alerts
+carry a malicious source address and NOT ONE has a recorded successful
+authentication. The combination that makes reputation triggering again is
+therefore never reached by the data, exactly as lateral movement is never
+reached (finding 10). It is tested here by construction instead, with the
+answers known in advance.
 """
 
+from core.contracts import (
+    AttackStage,
+    AttackType,
+    ForensicsResult,
+    HuntResult,
+    IOCEnrichment,
+    Severity,
+    TriageResult,
+    Verdict,
+)
 from core.llm import LLMUnavailable
 from core.preprocessor import load_alerts
 from tools import history, reporter, scenarios
@@ -45,7 +61,7 @@ print()
 print("=" * 74)
 print("PART 2 - THE DECISION IS MODEL-INDEPENDENT")
 print("=" * 74)
-# Save the real functions so Part 4 can use them again.
+# Save the real functions so later parts use them again.
 saved_call = reporter.structured_call
 saved_available = reporter.llm_available
 
@@ -89,16 +105,17 @@ identical = len(set(decisions.values())) == 1
 print()
 print(f"  all three decisions identical : {identical}   (must be True)")
 
-# Put the real functions back, so nothing after this point is affected.
+# Put the real functions back.
 reporter.structured_call = saved_call
 reporter.llm_available = saved_available
 
 print()
 print("=" * 74)
-print("PART 3 - THE ESCALATION GATE ACROSS THE CORPUS")
+print("PART 3 - TRIAGE + FORENSICS ACROSS THE CORPUS")
 print("=" * 74)
-print("  The hunter is left out here on purpose: it needs network lookups")
-print("  for 738 alerts. This measures what triage + forensics alone add.")
+print("  The hunter is excluded here, so this is NOT the full gate -")
+print("  test_gate.py measures all three agents and all three policies.")
+print("  This part isolates what context alone adds to rules alone.")
 print()
 triage_only = combined = overridden = suppressed = 0
 for alert in alerts:
@@ -137,3 +154,53 @@ for needle in ("THE AGENTS DISAGREE",
                "No verdict in this report was produced by a language model"):
     found = needle in document.markdown
     print(f"  {'ok ' if found else 'BAD'} \"{needle[:52]}\"")
+
+print()
+print("=" * 74)
+print("PART 5 - REPUTATION VS IMPACT (the branch the corpus cannot reach)")
+print("=" * 74)
+print("  561 corpus alerts carry a malicious source. NONE of them has a")
+print("  recorded successful authentication, so the combination that makes")
+print("  reputation triggering again is never exercised by the data.")
+print("  These four cases exercise it by construction.")
+print()
+
+malicious = HuntResult(
+    iocs=[IOCEnrichment(indicator="45.55.159.241",
+                        verdict=Verdict.MALICIOUS, abuse_confidence=90)],
+    hypothesis="a known-bad address, as AbuseIPDB reports it",
+    threat_score=43)
+clean = HuntResult(
+    iocs=[IOCEnrichment(indicator="10.0.0.1", verdict=Verdict.CLEAN)],
+    hypothesis="an ordinary internal address",
+    threat_score=10)
+low_triage = TriageResult(
+    attack_type=AttackType.BRUTE_FORCE, severity=Severity.LOW, score=43,
+    confidence=0.65, rationale="a low-severity brute-force attempt",
+    escalate_to_tier2=False)
+
+
+def context(successes: int) -> ForensicsResult:
+    """Forensics that found no multi-host pattern, only N successes."""
+    return ForensicsResult(attack_stage=AttackStage.INITIAL_ACCESS,
+                           actor_successes=successes)
+
+
+cases = [
+    ("malicious source, 0 successes", malicious, context(0), False),
+    ("malicious source, 1 success", malicious, context(1), True),
+    ("malicious source, 6 successes", malicious, context(6), True),
+    ("CLEAN source, 6 successes", clean, context(6), False),
+]
+for label, hunt_result, forensic, wanted in cases:
+    decision = reporter.recommend_escalation(low_triage, hunt_result, forensic)
+    reason = (decision["signals"][0] if decision["signals"]
+              else decision["suppressed"])
+    mark = "ok " if decision["escalate"] == wanted else "BAD"
+    print(f"  {mark} {label:<32} escalate={str(decision['escalate']):<6} "
+          f"{reason[:40]}")
+
+print()
+print("  Line 1 is the internet. Line 2 and 3 are intrusions. Line 4 is an")
+print("  administrator doing their job - successes without a bad source are")
+print("  not an incident either. Every line must say 'ok'.")

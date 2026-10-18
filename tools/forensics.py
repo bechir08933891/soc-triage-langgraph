@@ -307,6 +307,10 @@ def investigate(alert: Alert,
         lateral_movement=movement["lateral_movement"],
         horizontal_spread=movement["horizontal_spread"],
         attack_stage=stage,
+        # The success count the gate needs. It was already computed; it was
+        # just trapped in the meta dictionary where no other agent could
+        # reach it.
+        actor_successes=movement["successes"],
         analysis=" ".join(parts),
     )
     meta = {

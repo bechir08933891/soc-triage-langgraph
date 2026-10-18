@@ -492,34 +492,90 @@ Scripts: `test_pipeline.py`, `test_graph.py`, `nodes/a2a_client.py`
 
 ### Finding 17 — the multi-agent gate escalates what a single agent closes
 
-The escalation decision is the **union** of every agent's signals, computed
-deterministically before any language model is contacted. Measured across all
-738 alerts with triage and forensics:
+The escalation decision is the union of every agent's signals, computed
+deterministically before any language model is contacted, and verified
+model-independent (identical across a working model, an injected
+`LLMUnavailable`, and an injected `KeyError`).
+
+Measured across all 738 alerts, all three agents, under the shipped policy:
 
 | | alerts | share |
 |---|---:|---:|
 | triage alone escalates | 0 | 0.0% |
-| triage + forensics escalates | 6 | 0.8% |
+| all three agents escalate | 6 | 0.8% |
 | of which triage would have **closed** | 6 | 0.8% |
-| explicitly suppressed as non-attack | 34 | 4.6% |
 
 Every alert the system escalates is one a single-agent design would have
 auto-closed, because no alert in this corpus reaches High severity
-(finding 3) and the rule gate therefore never fires at all.
+(finding 3) and the rule gate therefore never fires at all. The six come
+from forensics: four at stage `Persistence`, two at `PrivilegeEscalation`.
 
-That measurement excludes the hunter, whose reputation lookups are measured
-separately by `test_gate.py` (which runs all three agents from the cache in
-about a second). On a live run of a real corpus alert the hunter supplied the
-override on its own: triage said `BruteForce / Low → auto-close` while
-AbuseIPDB returned `malicious, 90%`, and the gate escalated.
-
-The decision was verified **model-independent**: identical across a working
-model, an injected `LLMUnavailable`, and an injected `KeyError`. The report
-also states the disagreement rather than reconciling it, and both independent
-runs of the summary model wrote the sentence *"The agents disagree"*,
-prompted by nothing but the rule in its system prompt.
+The report also states the disagreement rather than reconciling it, and
+both independent runs of the summary model wrote the sentence "The agents
+disagree", prompted by nothing but the rule in its system prompt.
 
 Scripts: `test_reporter.py`, `test_gate.py`, `tools/reporter.py`
+
+### Finding 19 — reputation is not impact
+
+The first version of that gate escalated **567 of 738 alerts (76.8%)**.
+That is not triage; it is the alert fatigue the system exists to remove,
+relocated one step to the right.
+
+The cause was a single signal firing 561 times: `hunter: a malicious
+indicator`. The threshold behind it is not wrong — the corpus holds only 47
+unique source addresses across 691 IP-bearing alerts, so the busiest appear
+170+ times each and `LOCAL_MALICIOUS_HITS = 50` marks them malicious
+correctly. The error was the inference drawn from it:
+
+| evidence | what it is | the first gate said |
+|---|---|---|
+| a known-bad address knocked | the threat landscape | escalate |
+| a known-bad address **got in** | an incident | escalate |
+
+Signals are now classified by what they can do alone. **Triggering**
+signals escalate by themselves: High severity, a threat score at or above
+70, lateral movement, a late kill-chain stage, or a malicious source
+**together with a recorded successful authentication**. **Corroborating**
+signals reach the report but do not open a ticket, and source reputation is
+one of them.
+
+Three policies were then measured on the full corpus for volume and on the
+labelled synthetic incidents for detection, because a quieter gate is
+worthless if it is also blind:
+
+| policy | escalated | share | LM (intrusion) | GA, PS (spraying) |
+|---|---:|---:|---:|---:|
+| `any` — reputation escalates | 567 | 76.8% | 5/5 | 0/3, 0/3 |
+| `corroborate` — **shipped** | **6** | **0.8%** | **5/5** | 0/3, 0/3 |
+| `triggering` | 6 | 0.8% | 5/5 | 0/3, 0/3 |
+
+A 99% reduction in escalations with no loss of detection. The 561 closed
+alerts are closed with a stated reason — `reputation alone, with no
+evidence of impact` — rather than in silence, and every closed alert now
+carries one of four explicit reasons.
+
+Two limits of this measurement are recorded rather than glossed:
+
+1. **The decisive branch is never exercised by the corpus.** Of the 561
+   alerts with a malicious source, not one has a recorded successful
+   authentication, so `a malicious source with N successful
+   authentication(s)` is never reached by the data. This is finding 10
+   repeating: a single sensor under constant scanning means nothing ever
+   gets in. The branch is validated by four constructed cases with known
+   answers (`test_reporter.py`, Part 5), including the inverse case — a
+   clean source with six successes, which is an administrator working and
+   is correctly not escalated.
+
+2. **The sweep did not choose the shipped policy.** `corroborate` and
+   `triggering` both return 6, because they differ only in what the report
+   lists once something else has triggered, never in a decision. The
+   measurement eliminated `any` decisively and could not separate the other
+   two. `corroborate` ships on a reporting argument — an analyst looking at
+   an escalated alert should see the malicious source alongside the reason
+   it escalated — not on an evidential one.
+
+Scripts: `test_gate.py`, `test_reporter.py` (Part 5), `tools/reporter.py`
 
 ### Finding 18 — a checkpoint is an untrusted file
 

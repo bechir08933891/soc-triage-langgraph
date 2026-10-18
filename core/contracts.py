@@ -252,6 +252,11 @@ class ForensicsResult(BaseModel):
     # exactly that and flagged 100% of the corpus.
     horizontal_spread: bool = False
     attack_stage: AttackStage = AttackStage.UNDETERMINED
+    # How many SUCCESSFUL authentications this actor achieved in the window.
+    # Promoted out of the audit metadata into the contract because the
+    # escalation gate needs it: reputation plus a success is an intrusion,
+    # reputation plus nothing is the internet (finding 19).
+    actor_successes: int = Field(default=0, ge=0)
     analysis: str = ""
 
     @property
