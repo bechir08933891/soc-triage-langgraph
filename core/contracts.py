@@ -305,3 +305,18 @@ class HuntRequest(BaseModel):
 
     alert: dict[str, Any]
     local_hits: int = Field(default=0, ge=0)
+
+
+
+class ForensicsRequest(BaseModel):
+    """What a caller sends to the forensics agent over A2A.
+
+    `window_minutes` is bounded on purpose. A window of 0 would make the
+    timeline meaningless, and a window of a year would pull in the entire
+    corpus and time out. 5 minutes to 24 hours covers every sensible
+    investigation, and a caller asking for something outside that range gets
+    a validation error instead of a surprise.
+    """
+
+    alert: dict[str, Any]
+    window_minutes: int = Field(default=60, ge=5, le=1440)

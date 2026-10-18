@@ -6,7 +6,7 @@ Hosts our A2A agents as one small web server.
 Why one process for several agents? Four separate servers would use around
 600 MB of memory. One process hosting four agents uses about 150 MB. Each
 agent still has its own Agent Card and its own endpoint, so it is genuinely
-A2A — just efficiently hosted. Splitting them onto separate machines later
+A2A - just efficiently hosted. Splitting them onto separate machines later
 needs no code change, only different addresses in the cards.
 """
 
@@ -27,16 +27,22 @@ from a2a.server.routes.jsonrpc_routes import create_jsonrpc_routes
 # Remembers tasks in memory. Enough for a demo; swap for a database later.
 from a2a.server.tasks import InMemoryTaskStore
 
-# `as HUNTER_PATH` renames on import. BOTH agent files define AGENT_PATH and
-# CARD_PATH, so without renaming, the second import would silently overwrite
-# the first — and hunter requests would be sent to the triage endpoint.
+# `as FORENSICS_PATH` renames on import. EVERY agent file defines AGENT_PATH
+# and CARD_PATH, so without renaming, the later imports would silently
+# overwrite the earlier ones - a nasty bug that would send forensics
+# requests to triage.
+from a2a_agents.forensics_agent import (
+    AGENT_PATH as FORENSICS_PATH,
+    CARD_PATH as FORENSICS_CARD_PATH,
+    FORENSICS_CARD,
+    ForensicsAgentExecutor,
+)
 from a2a_agents.hunter_agent import (
     AGENT_PATH as HUNTER_PATH,
     CARD_PATH as HUNTER_CARD_PATH,
     HUNTER_CARD,
     HunterAgentExecutor,
 )
-
 from a2a_agents.triage_agent import (
     AGENT_HOST,
     AGENT_PATH,
@@ -47,8 +53,8 @@ from a2a_agents.triage_agent import (
 )
 
 
-# The list of agents we host. In Steps 12-14 we add hunter, forensics and
-# reporter here, and everything else keeps working unchanged.
+# The list of agents we host. Adding the reporter later means adding one
+# entry here; nothing else changes.
 AGENTS = [
     {
         "name": "triage",
@@ -64,13 +70,20 @@ AGENTS = [
         "rpc_url": HUNTER_PATH,
         "card_url": HUNTER_CARD_PATH,
     },
+    {
+        "name": "forensics",
+        "card": FORENSICS_CARD,
+        "executor": ForensicsAgentExecutor(),
+        "rpc_url": FORENSICS_PATH,
+        "card_url": FORENSICS_CARD_PATH,
+    },
 ]
 
 
 async def index(request):
     """A friendly page at the root, listing the agents we host.
 
-    Not part of A2A — just useful for you and for a jury member who opens
+    Not part of A2A - just useful for you and for a jury member who opens
     the address in a browser and wants to see what is running.
     """
     return JSONResponse({

@@ -463,6 +463,68 @@ row, and was labelled a stranger in its own timeline. The focus alert is
 the actor by definition, and is now treated as such. The test asserts that
 no window contains zero events belonging to its own actor.
 
+### Finding 15 — triage and forensics disagree on the same alerts, and the disagreement is the architecture
+
+The two agents were given the five alerts of a confirmed lateral-movement
+incident (`tools/scenarios.py`, synthetic and labelled):
+
+| alert | triage, one alert alone | forensics, in context | triage escalates? |
+|---|---|---|---|
+| DEMO-LM-01 | BruteForce / Low | LateralMovement | no |
+| DEMO-LM-02 | NormalActivity / Info | LateralMovement | no |
+| DEMO-LM-03 | NormalActivity / Info | LateralMovement | no |
+| DEMO-LM-04 | NormalActivity / Info | LateralMovement | no |
+| DEMO-LM-05 | PrivilegeEscalation / Low | LateralMovement | no |
+
+Triage would auto-close 5 of 5. Forensics flags 5 of 5.
+
+Triage is not wrong. `PAM: Login session opened.` is normal activity, and a
+successful authentication at Wazuh level 3 is the most ordinary event in a
+Linux estate. Each alert, judged alone, is noise. They are an intrusion
+only together.
+
+Two consequences follow:
+
+1. Context is not an enhancement layered on triage. It answers a different
+   question and returns a different answer, which is the empirical case for
+   a multi-agent design rather than one larger classifier.
+
+2. `escalate_to_tier2` from the triage agent is an INPUT to routing, never
+   the routing decision. A graph that branched on it would auto-close this
+   incident five times. This is a hard constraint on the orchestration
+   graph in Step 18.
+
+It also sharpens finding 3: no alert in the real corpus reaches High
+severity, so the rule layer's escalation gate never fires at all. A system
+whose escalation depends on rule severity alone would escalate nothing,
+ever, on this data.
+
+Scripts: `tools/severity.py`, `tools/forensics.py`, `tools/scenarios.py`
+
+### Finding 16 — the A2A transport is result-identical, and the audit trail proves where it is not
+
+The same alert was run through triage, hunter and forensics twice, once
+with `SOC_A2A_MODE=1` (three agents over JSON-RPC, discovered through their
+Agent Cards) and once with `SOC_A2A_MODE=0` (the same functions called
+in-process):
+
+| | over A2A | in process |
+|---|---|---|
+| triage | NormalActivity / Info (score 10, conf 90%) | identical |
+| hunter | score 10/100, 1 IOC, worst clean | identical |
+| forensics | LateralMovement, 8 events (5 this actor), lateral=True spread=True | identical |
+| tokens | 873 | 832 |
+| errors | none | none |
+
+Every rule-derived value is identical. Only the token count differs, and it
+differs for a reason already recorded in finding 8: the language model's
+output length varies between calls. The distinction is visible in the audit
+trail rather than inferred — each run logs which transport it used, which
+layer produced each claim, and the exact token counts the remote agent
+reported back through A2A artifact metadata.
+
+Scripts: `test_three_nodes.py`, `nodes/a2a_client.py`
+
 ---
 
 ## Design decisions
@@ -596,8 +658,8 @@ soc-triage-langgraph/
 
 ### Remaining
 - [x] Step 15 — Forensics tools: host recovery, SQLite history, movement detection
-- [ ] Step 16 — Forensics as a third A2A agent, with LLM narrative synthesis
-- [ ] Step 17 — The full graph: conditional edges, checkpoints, human-in-the-loop
+- [x] Step 16 — Forensics agent: narrative synthesis, then A2A (agent 3 of 5)
+- [ ] Step 17 — Reporter agent (agent 4 of 5)
 - [ ] Step 18 — Streamlit demonstration interface (the five visual layers)
 - [ ] Step 19 — Automated test suite
 - [ ] Step 20 — Evaluation: does the LLM's score add signal over the rules?

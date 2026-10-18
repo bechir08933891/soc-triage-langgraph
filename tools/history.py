@@ -194,3 +194,42 @@ def hosts_for_ip(src_ip: str, timestamp_iso: str,
     if not src_ip:
         return []
     return _hosts_by("src_ip", src_ip, timestamp_iso, window_minutes, path)
+
+
+
+# Module-level flag so the check runs once per process, not once per alert.
+_READY = False
+
+
+def ensure_built(path: Path | None = None) -> str:
+    """Make sure the database exists, and SAY what happened.
+
+    Called by the forensics agent before it answers, and by the forensics
+    node when running in-process. Three outcomes, all of them honest:
+
+      - already there    -> use it
+      - corpus available -> build it once
+      - no corpus        -> create the EMPTY schema and say so
+
+    The third case is the one that matters. An empty database makes every
+    timeline contain only the alert itself, which is a true statement about
+    what is known. Crashing would be worse for a live SOC, and silently
+    returning an empty timeline without saying why would be worst of all -
+    an empty timeline looks exactly like a quiet night.
+    """
+    global _READY
+    if _READY or is_built(path):
+        _READY = True
+        return f"history ready, {row_count(path)} rows"
+    try:
+        from core.preprocessor import load_alerts
+        rows = build(load_alerts(), path=path)
+        _READY = True
+        return f"history built from corpus, {rows} rows"
+    except Exception as error:
+        with closing(connect(path)) as connection:
+            connection.executescript(SCHEMA)
+            connection.commit()
+        _READY = True
+        return (f"history EMPTY ({type(error).__name__}); timelines will "
+                f"contain only the alert itself")
