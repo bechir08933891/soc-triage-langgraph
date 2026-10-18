@@ -117,26 +117,36 @@ anonymised host name `xxx` with the real one (`prod-server`) on 466 records.
 Classification coverage rises from 96.5% to 99.6%, and no alert description
 is classified inconsistently any more.
 
-**5. First-party and third-party reputation fail in opposite directions.**
-Comparing our local frequency-based reputation against AbuseIPDB across the
-47 unique source addresses in the corpus gave only 57.4% agreement. The
-disagreements are systematic, not random:
+**5. First-party and third-party IP reputation fail in opposite directions.**
 
-- *Third-party blind spot*: three addresses responsible for 492 alerts
-  against this host (DigitalOcean, Mind Over Matter Solutions, PT Cloud
-  Hosting Indonesia) had **zero** AbuseIPDB reports. Crowd-sourced
-  reputation only knows what has been reported.
-- *Third-party false positives*: six addresses inside 64.62.156.0/24 —
-  registered in ARIN to The Shadowserver Foundation, a self-described
-  "altruistic, public benefit, nonprofit organization" that scans the
-  internet and reports findings free to network owners and national CERTs —
-  each carried ~1,600 abuse reports and a 100% confidence score.
-- *Agreement* occurred on genuine high-volume attackers (e.g.
-  14.103.118.153, 65 local alerts, 1,219 external reports).
+Across the 47 unique source addresses in the corpus, our local frequency-based
+reputation and AbuseIPDB agreed on only 27 (57.4%). The 20 disagreements
+decompose exactly into three causes:
 
-Consequence for the design: both verdicts are retained separately with their
-provenance, a verified allowlist corrects known research scanners with the
-reason recorded, and no single source may drive escalation alone.
+| Cause | n | Share |
+|-------|---|-------|
+| Benign internet-measurement projects | 7 | 35% |
+| External blind spot: abuse we observed, never reported externally | 9 | 45% |
+| Local blind spot: reported abuse we saw too rarely to score | 4 | 20% |
+
+The research-scanner category is dominated by six addresses inside
+`64.62.156.0/24`, registered in ARIN to The Shadowserver Foundation — a
+self-described "altruistic, public benefit, nonprofit organization" that
+scans the internet and reports findings free to network owners and national
+CERTs. Each carried roughly 1,600 abuse reports and a 100% AbuseIPDB
+confidence score. Acting on that score would consume analyst time on a
+benign scan.
+
+The operational consequence is asymmetric. The nine externally-unknown
+addresses account for **533 of the 691 IP-bearing alerts (77.1%)**, while the
+four addresses only external intelligence flagged account for 6 alerts
+(0.9%). A Tier-1 system relying on crowd-sourced reputation alone would have
+had no signal on three quarters of the attack traffic in this corpus.
+
+Design response: both verdicts are retained separately with their provenance
+in `per_source`; a verified allowlist corrects known research scanners with
+the reason recorded in the audit trail; and no single source may drive
+escalation alone.
 
 Reproduce with `python compare_reputation.py`.
 
