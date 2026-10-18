@@ -525,6 +525,50 @@ reported back through A2A artifact metadata.
 
 Scripts: `test_three_nodes.py`, `nodes/a2a_client.py`
 
+### Finding 17 — the multi-agent gate escalates what a single agent closes
+
+The escalation decision is the union of every agent's signals, computed
+deterministically before any language model is contacted. Measured across
+all 738 alerts with triage and forensics (the hunter is excluded here
+because it needs a network lookup per alert):
+
+| | alerts | share |
+|---|---:|---:|
+| triage alone escalates | 0 | 0.0% |
+| triage + forensics escalates | 6 | 0.8% |
+| of which triage would have CLOSED | 6 | 0.8% |
+| explicitly suppressed as non-attack | 34 | 4.6% |
+
+Every alert the system escalates is one a single-agent design would have
+auto-closed, because no alert in this corpus reaches High severity
+(finding 3) and the rule gate therefore never fires at all.
+
+The decision was verified to be model-independent: identical across a
+working model, an injected `LLMUnavailable`, and an injected `KeyError`.
+The report also states the disagreement rather than reconciling it, and
+both independent runs of the summary model wrote the sentence "The agents
+disagree" unprompted by anything but the rule in its system prompt.
+
+Scripts: `test_reporter.py`, `tools/reporter.py`
+
+### Finding 18 — a checkpoint is an untrusted file
+
+Pausing a run writes the state to a checkpoint; resuming reads it back.
+LangGraph 1.2.16 warned on every resume that deserialising our domain types
+is permitted only for now and "will be blocked in a future version". The
+underlying reason is a security one the warning only hints at: if an
+attacker can write to the checkpoint store, a permissive deserialiser is a
+path to code execution.
+
+The graph therefore builds its serialiser in strict mode
+(`allowed_msgpack_modules=None`) and allow-lists exactly the fifteen
+contract classes the state can contain, by class rather than by module
+name, so a typo is an import error rather than a silent failure to restore
+a paused run. The test suite is run with `-W error::UserWarning`, which
+turns any unlisted type into a test failure.
+
+Script: `graph.py` (`make_serializer`), `test_graph.py`
+
 ---
 
 ## Design decisions
@@ -659,8 +703,8 @@ soc-triage-langgraph/
 ### Remaining
 - [x] Step 15 — Forensics tools: host recovery, SQLite history, movement detection
 - [x] Step 16 — Forensics agent: narrative synthesis, then A2A (agent 3 of 5)
-- [ ] Step 17 — Reporter agent (agent 4 of 5)
-- [ ] Step 18 — Streamlit demonstration interface (the five visual layers)
+- [x] Step 18 — The graph: parallel fan-out, conditional edges, human-in-the-loop
+- [ ] Step 19 — Streamlit interface (five visual layers)
 - [ ] Step 19 — Automated test suite
 - [ ] Step 20 — Evaluation: does the LLM's score add signal over the rules?
 - [ ] Step 21 — Optional: cache resolved Agent Cards, re-measure finding 7

@@ -4,11 +4,17 @@ nodes/reporter_node.py
 The LangGraph node for report writing. Agent 4 of 5.
 
     reads   : alert, triage_result, hunt_result, forensics_result
-    writes  : report, events, token_usage, (errors on failure)
+    writes  : report, escalate, escalation_signals, overridden_triage,
+              events, token_usage, (errors on failure)
 
 It is the only node that reads other nodes' output, so it is the only one
 that can be called with pieces missing - and it says which pieces, out
 loud, in the log.
+
+It writes the DECISION into state as plain data (`escalate`), which is what
+the graph's conditional edge branches on. A router that had to parse the
+Markdown report to find a flag would be a router that breaks the first time
+the wording changes.
 
 It also logs the sentence that justifies the architecture:
 "Triage alone would have auto-closed this alert."
@@ -87,8 +93,8 @@ async def reporter_node(state: SOCState) -> dict:
                                      agent=response["agent_name"]))
 
             # The decision comes back as METADATA, not parsed out of the
-            # Markdown. A router must never read a document to find a flag.
-            # A2A metadata is all strings, so they are converted back here.
+            # Markdown. A2A metadata is all strings, so they are converted
+            # back here.
             remote = response.get("metadata") or {}
             escalate = str(remote.get("escalate", "False")) == "True"
             overridden = str(remote.get("overridden_triage", "False")) == "True"
@@ -145,7 +151,8 @@ async def reporter_node(state: SOCState) -> dict:
         elapsed_ms = round((time.perf_counter() - started) * 1000)
         events.append(make_event(NODE, "error", f"Report failed: {error}",
                                  elapsed_ms=elapsed_ms))
-        return {"report": None, "events": events, "errors": [str(error)]}
+        return {"report": None, "escalate": None, "events": events,
+                "errors": [str(error)]}
 
     events.append(make_event(NODE, "tool_call",
                              f"Escalation signals: {signals}"))
@@ -166,9 +173,16 @@ async def reporter_node(state: SOCState) -> dict:
         report_chars=document.char_count,
         elapsed_ms=elapsed_ms))
 
-    update: dict = {"report": document.markdown, "events": events}
-    # Only include token_usage if there is something to add. An empty list
-    # would still trigger the reducer, harmlessly but pointlessly.
+    # THE DECISION GOES INTO STATE. `route_after_report` reads `escalate`
+    # from here, and nothing else in the graph needs to know how it was
+    # computed.
+    update: dict = {
+        "report": document.markdown,
+        "escalate": escalate,
+        "escalation_signals": (signals.split("; ") if signals != "none" else []),
+        "overridden_triage": overridden,
+        "events": events,
+    }
     if usage_records:
         update["token_usage"] = usage_records
     return update
