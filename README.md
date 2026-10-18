@@ -450,6 +450,19 @@ left as `Undetermined` deliberately: every remaining case is one or two
 records, and a keyword added to fix a single row is over-fitting, not
 classification.
 
+The scale of the problem was then measured across the corpus. Of all
+timeline events built for all 738 alerts, only a small minority share the
+focus alert's source address or identity; the large majority belong to a
+different attacker who happened to be active in the same 60-minute window,
+and most windows are more than half strangers. Every one of those events
+was previously presented to the model as part of the same incident.
+
+Building that measurement exposed a second defect: an alert with no source
+IP and a generic account failed the actor test against its own database
+row, and was labelled a stranger in its own timeline. The focus alert is
+the actor by definition, and is now treated as such. The test asserts that
+no window contains zero events belonging to its own actor.
+
 ---
 
 ## Design decisions

@@ -117,10 +117,25 @@ def _run(call: Callable[[Any], Any]) -> Any:
         raise
 
 
-def _usage_from(raw: Any) -> dict[str, int]:
+def _usage_from(raw: Any) -> dict[str, Any]:
+    """Pull the token counts out of a provider reply, and price them.
+
+    `usage_metadata` is what LangChain attaches to a response. It can be
+    missing entirely (some providers, some error paths), so every read has a
+    default of 0 rather than assuming the key is there.
+
+    The COST is computed here, right next to the price table, so that every
+    caller reports the same figure: the hunter, the forensics narrator, and
+    the A2A metadata. Before this, each caller computed it separately - and
+    one of them (my own test) asked for a key that did not exist and
+    cheerfully printed $0.000000.
+    """
     usage = getattr(raw, "usage_metadata", None) or {}
-    return {"input_tokens": int(usage.get("input_tokens", 0)),
-            "output_tokens": int(usage.get("output_tokens", 0))}
+    inp = int(usage.get("input_tokens", 0))
+    out = int(usage.get("output_tokens", 0))
+    return {"input_tokens": inp, "output_tokens": out,
+            "total_tokens": inp + out,
+            "cost_usd": cost_usd(LLM_MODEL, inp, out)}
 
 
 def _extract_json(text: str) -> dict:
