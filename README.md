@@ -122,6 +122,21 @@ set SOC_A2A_MODE=0    :: the same functions, called in this process
 Both produce identical results. That is what makes the A2A claim a
 measurement rather than a decoration (finding 16).
 
+### 5. The interface
+
+```cmd
+pip install "streamlit>=1.66"
+streamlit run app.py
+```
+
+Five layers: the live audit trail, what each agent concluded side by side,
+the evidence behind each claim, the human gate, and the incident report.
+The gate appears only when the alert actually escalated — about 0.8% of the
+corpus (finding 19).
+
+In A2A mode `run_agents.py` must be running; the sidebar's **Check the
+agents** button confirms it.
+
 ---
 
 ## Findings
@@ -809,7 +824,7 @@ affect the decision.
 - [x] Step 16 — Forensics narrative and A2A agent (agent 3 of 5)
 - [x] Step 17 — Reporter agent: the escalation gate (agent 4 of 5)
 - [x] Step 18 — The graph: parallel fan-out, conditional edges, HITL
-- [ ] Step 19 — Streamlit interface (five visual layers)
+- [x] Step 19 — Streamlit interface (five visual layers)
 - [ ] Step 20 — Automated test suite
 - [ ] Step 21 — Evaluation: does the model's score add signal over the rules?
 - [ ] Step 22 (optional) — Cache resolved Agent Cards, re-measure finding 7
