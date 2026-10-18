@@ -1,347 +1,277 @@
-# SOC Triage Agent — LangGraph + A2A Edition
+# SOC Triage Agent — LangGraph Edition
 
-A live graphical demonstration of a multi-agent AI system applied to
-cybersecurity alert triage.
+A five-agent Security Operations Centre triage system. Four software agents
+speak the **A2A protocol** (Agent2Agent, Linux Foundation) over JSON-RPC;
+**LangGraph** orchestrates them; the fifth agent is a human, who approves or
+rejects at an interrupt-based gate.
 
-Security alerts from Wazuh (an open-source SIEM) flow through a LangGraph
-state machine of five specialised agents. The agents communicate over the
-**A2A protocol** (Agent2Agent, Linux Foundation). The interface shows, in
-real time, what every agent is doing, which tools it calls, and what it costs.
+Built and measured against a real Wazuh alert corpus of **738 records**.
 
-## The five agents
-
-| Agent | Role | Uses an LLM? |
-|------|------|--------------|
-| `triage` | Classifies the attack and assigns a severity | No — fully deterministic |
-| `hunter` | Enriches indicators and maps to MITRE ATT&CK | Yes (prose and one score only) |
-| `forensics` | Rebuilds the attack timeline, detects lateral movement | Yes |
-| `reporter` | Writes the structured incident report | Yes |
-| `hitl` | Pauses the graph and waits for a human decision | No |
+**The design principle, applied everywhere:** rules and tools decide;
+the language model only writes prose. Every report ends with the sentence
+*"No verdict in this report was produced by a language model."* and that
+sentence is true, verified by injecting model failures and confirming the
+decision does not move.
 
 ---
 
-## Findings at a glance
+## The orchestration graph
 
-Every number below is reproducible by running the named script on the full
-738-record corpus.
-
-| # | Finding | Reproduce with |
-|---|---------|----------------|
-| 1 | The dataset's True/False Positive labels are a function of `rule.level` alone — 738 of 738 records (100%) | `python verify.py` |
-| 2 | 63% of records are active-response wrappers hiding the real alert at `data.parameters.alert` | `python inspect_nested.py` |
-| 3 | No alert reaches Critical or High severity; only levels 3, 4, 5 and 8 are present | `python analyse.py` |
-| 4 | Unwrapping the wrappers recovers 46 real source IPs and 466 real host names; coverage rises 96.5% to 99.6% | `python analyse.py` |
-| 5 | First-party and third-party IP reputation agree on only 57.4%, and fail in opposite directions | `python compare_reputation.py` |
-| 6 | Measured LLM cost is about 20x below the design estimate: 657 tokens and $0.00014 per enrichment | `python test_llm.py` |
-| 7 | A2A costs 444 ms per agent call against 1.4 ms in-process — 318x more, and about 20% of a two-agent run | `python measure.py` |
-| 8 | Reproducibility is partial by design: the rule scorer gives 1 distinct result in 500 runs, the LLM gives 3 in 16 | `python measure.py` |
-
----
-
-## Architecture: what LangGraph does, and what A2A does
-
-The two are not alternatives. They solve different problems, and the project
-uses each for what it is good at.
-
-```text
-   +----------------------------------------------+
-   |  LangGraph - the orchestrator                |
-   |  - SOCState: one typed, shared memory        |
-   |  - checkpoints, replay, human-in-the-loop    |
-   |                                              |
-   |  each node is an A2A CLIENT                  |
-   +---+--------------+---------------------------+
-       | A2A          | A2A
-       v              v
-   +--------+     +--------+
-   | triage |     | hunter |   one process, port 9001
-   |/triage |     |/hunter |   each with its own Agent Card
-   +--------+     +--------+
+```mermaid
+graph TD;
+	__start__([__start__]):::first
+	triage(triage)
+	hunter(hunter)
+	forensics(forensics)
+	reporter(reporter)
+	hitl(hitl)
+	__end__([__end__]):::last
+	__start__ --> triage;
+	forensics --> reporter;
+	hunter --> reporter;
+	reporter -.-> __end__;
+	reporter -.-> hitl;
+	triage -.-> forensics;
+	triage -.-> hunter;
+	hitl --> __end__;
 ```
 
-**A2A** (Agent2Agent, hosted by the Linux Foundation) lets agents discover
-each other and exchange work across vendor and organisational boundaries. It
-works, by design, *without* shared internal memory.
+Solid lines are fixed edges; dotted lines are conditional. `hunter` and
+`forensics` run in the **same step** — visible in the checkpoint trail as
+`next -> ('hunter', 'forensics')`.
 
-**LangGraph** holds exactly what A2A deliberately omits: one typed state
-object that every agent reads and writes, checkpointed after each step, with
-a native `interrupt()` for human approval.
-
-Agents are therefore addressed through published Agent Cards, never hardcoded
-URLs, while the investigation itself lives in auditable shared state.
-
-### The transport switch
-
-`SOC_A2A_MODE` selects how nodes reach their agents:
-
-| Value | Behaviour |
-|-------|-----------|
-| `true` | nodes call their agents over A2A (real interoperability) |
-| `false` | nodes call the Python function directly (fast, no server needed) |
-
-The graph, the state, the audit trail and the results are **identical** either
-way. Only the transport changes. That is what makes the measurement in
-finding 7 possible, and what keeps the demonstration runnable if a port is
-unavailable.
+| agent | question it answers | state it owns |
+|---|---|---|
+| **triage** | what kind of alert is this, judged alone? | none — a pure function |
+| **hunter** | is this indicator known bad, and which ATT&CK technique? | none + external intel |
+| **forensics** | what else happened around it, and by whom? | **a SQLite alert history** |
+| **reporter** | what does it all add up to, and does a human need to see it? | none |
+| **hitl** | a person's decision | the checkpoint |
 
 ---
 
-## Installation
+## Quick start
 
-Requires Python 3.10 or newer.
+### 1. Requirements
 
-```bash
-# 1. Get the code
-git clone https://github.com/YOUR-USERNAME/soc-triage-langgraph.git
-cd soc-triage-langgraph
+Python 3.13, Windows/macOS/Linux. No GPU.
 
-# 2. Create an isolated environment
-py -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate     # macOS / Linux
-
-# 3. Install the libraries
-python -m pip install --upgrade pip
+```cmd
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Configuration
+### 2. The dataset
 
-Copy `.env.example` to `.env` and fill in what you have. **Every key is
-optional** — the system degrades to deterministic behaviour rather than
-failing.
+The corpus is **not** in this repository. Download it:
 
-```text
-OPENAI_API_KEY=sk-...          # for the hunter, forensics and reporter agents
-SOC_LLM_MODEL=gpt-6-luna       # see the note on model deprecation below
-ABUSEIPDB_API_KEY=...          # optional: external IP reputation
-SOC_OFFLINE_MODE=false         # true = no outbound calls at all
-SOC_A2A_MODE=true              # false = call agents in-process
-```
-
-`.env` is git-ignored and must never be committed.
-
-> **On model choice.** `gpt-4o-mini`, named in the original design, was
-> deprecated on 2026-10-14 and shuts down on 2027-01-14. `gpt-6-luna` is
-> OpenAI's recommended replacement and is cheaper. The LLM layer detects and
-> works around per-model parameter constraints at runtime — see
-> *Design decisions*.
-
----
-
-## Getting the dataset
-
-The alert corpus is **not** stored in this repository. It is a 3 MB public
-dataset, and anyone can fetch it with one command:
-
-```bash
+```cmd
 python download_data.py
 ```
 
-This downloads the complete dataset — all 738 records, nothing sampled —
-from Hugging Face into `data/wazuh_formatted_alerts.json`.
+That fetches `wazuh_formatted_alerts.json` (2.96 MB, 738 records) into
+`data/`. The file is git-ignored.
 
-| | |
-|---|---|
-| **Source** | [`kholil-lil/wazuh-alerts`](https://huggingface.co/datasets/kholil-lil/wazuh-alerts) |
-| **File** | `wazuh_formatted_alerts.json` (about 3 MB) |
-| **Licence** | MIT |
-| **Records** | 738 |
+To fetch it manually instead, it is the Wazuh alert dataset at
+<https://huggingface.co/datasets/kholil-lil/wazuh-alerts> — place
+`wazuh_formatted_alerts.json` in `data/`.
 
-**If the download fails** (firewall, proxy, no internet), download the file
-by hand from
-<https://huggingface.co/datasets/kholil-lil/wazuh-alerts/blob/main/wazuh_formatted_alerts.json>
-and place it in the `data/` folder under that exact name. Then re-run the
-command above — it will detect the file and skip the download.
+### 3. Keys (optional)
 
-To force a fresh copy, edit `download_data.py` and set `force=True`.
+Create a `.env` file in the project root. **No quotes, no spaces around `=`.**
 
----
+```dotenv
+OPENAI_API_KEY=sk-...
+ABUSEIPDB_API_KEY=...
+VIRUSTOTAL_API_KEY=...
+```
 
-## Running the agents
+`.env` is git-ignored and must never be committed. Every key is optional:
+without them the system runs with deterministic fallbacks and says so in the
+audit trail. To disable all outbound calls, set `SOC_OFFLINE_MODE=1`.
 
-The A2A agents run as one small web server. Start it in its own window and
-leave it running:
+### 4. Run it
 
-```bash
+Start the agent host in one window:
+
+```cmd
 python run_agents.py
 ```
 
-| Address | What it serves |
-|---------|----------------|
-| `http://127.0.0.1:9001/` | the list of hosted agents |
-| `http://127.0.0.1:9001/triage/.well-known/agent-card.json` | the triage Agent Card |
-| `http://127.0.0.1:9001/hunter/.well-known/agent-card.json` | the hunter Agent Card |
+In another window, run the whole system on one alert:
 
-All agents share one process deliberately: four separate servers would use
-roughly 600 MB, one process about 150 MB. Each still has its own card and
-endpoint, so splitting them onto separate machines later requires no code
-change — only different addresses in the cards.
+```cmd
+python run_graph.py demo
+```
 
-If the port is already held by an older copy of the server, `run_agents.py`
-prints the commands to find and release it.
+`demo` is a labelled synthetic lateral-movement incident. For a real alert
+from the corpus, pass its id:
 
----
+```cmd
+python run_graph.py 1741133026.4897
+```
 
-## Scripts
+### 5. The transport switch
 
-Each script answers one question. Run them from the project root with the
-environment active.
+```cmd
+set SOC_A2A_MODE=1    :: agents talk over A2A (needs run_agents.py)
+set SOC_A2A_MODE=0    :: the same functions, called in this process
+```
 
-### Data and findings
-
-| Command | What it answers |
-|---------|-----------------|
-| `python download_data.py` | Fetch the complete dataset |
-| `python analyse.py` | What is in the data, and how does triage classify it? |
-| `python inspect_classes.py` | Is the classifier over-matching? |
-| `python verify.py` | Are the dataset's labels real ground truth? |
-| `python inspect_nested.py` | What is hidden inside active-response records? |
-| `python compare_reputation.py` | Does local reputation agree with AbuseIPDB? |
-
-### Components and measurement
-
-| Command | What it tests |
-|---------|---------------|
-| `python test_intel.py` | MITRE coverage and IP enrichment across the corpus |
-| `python test_llm.py` | The LLM layer, with real token counts and cost |
-| `python test_node.py` | One LangGraph node, local and over A2A |
-| `python test_two_nodes.py` | Two agents collaborating in one graph |
-| `python measure.py` | Transport overhead and reproducibility, isolated |
+Both produce identical results. That is what makes the A2A claim a
+measurement rather than a decoration (finding 16).
 
 ---
 
-## Findings in detail
+## Findings
 
-Measured across all 738 records unless stated otherwise.
+Eighteen findings, each backed by a committed script you can re-run. Several
+of them record mistakes that were measured and corrected, because a result
+that was never wrong teaches nothing about the method that produced it.
 
-**1. The True/False Positive labels are derived from the severity level.**
-A single rule — *"level 3 or below means False Positive"* — reproduces the
-published label on **738 of 738 records (100.0%)**. These labels therefore
-carry no information beyond `rule.level` and cannot serve as ground truth for
-a classifier. Reproduce with `python verify.py`.
+### Finding 1 — the dataset's own labels are a pure function of the rule level
 
-**2. 63% of the dataset is active-response bookkeeping.** 466 records
-describe the firewall blocking or unblocking a host. Each one wraps the alert
-that triggered it at `data.parameters.alert`, including the **real host name
-and attacker IP** that the outer record anonymises as `xxx`. Reproduce with
-`python inspect_nested.py`.
+Each record carries a label (`False Positive` / `True Positive`). For all
+**738/738** records the label is determined entirely by `rule.level`: level 3
+is always one, everything above is always the other.
 
-**3. No alert reaches Critical or High severity.** The only Wazuh levels
-present are 3, 4, 5 and 8. The escalation path and the human-in-the-loop gate
-therefore never fire on this corpus. It is used for format fidelity and
-distribution analysis; the live demonstration uses a curated scenario, and
-this is stated explicitly rather than hidden.
+The labels therefore cannot serve as ground truth for a classifier, because
+reproducing them requires only reading a single integer. They are reported
+here as a property of the dataset, not used as a target.
 
-**4. Unwrapping the active-response records recovers hidden evidence.**
-Reading the nested alert at `data.parameters.alert` raises the number of
-alerts carrying a real source IP from 645 to 691, and replaces the
-anonymised host name `xxx` with the real one (`prod-server`) on 466 records.
-Classification coverage rises from 96.5% to 99.6%, and no alert description
-is classified inconsistently any more.
+Script: `verify.py`
 
-**5. First-party and third-party IP reputation fail in opposite directions.**
+### Finding 2 — 63% of records hide the alert that actually matters
 
-Across the 47 unique source addresses in the corpus, our local
-frequency-based reputation and AbuseIPDB agreed on only 27 (57.4%). The 20
-disagreements decompose exactly into three causes:
+**466 of 738 records (63.1%)** are Wazuh *active-response* wrappers: the
+visible rule description is `Host Blocked by firewall-drop Active Response`,
+and the alert that triggered it sits nested at
+`data.parameters.alert`.
 
-| Cause | n | Share |
-|-------|---|-------|
-| Benign internet-measurement projects | 7 | 35% |
-| External blind spot: abuse we observed, never reported externally | 9 | 45% |
-| Local blind spot: reported abuse we saw too rarely to score | 4 | 20% |
+Read naively, nearly two thirds of the corpus is a firewall log. The
+preprocessor unwraps the nested alert and attaches its description, level,
+rule id, groups, host, source IP and raw log to the wrapper.
 
-The research-scanner category is dominated by six addresses inside
-`64.62.156.0/24`, registered in ARIN to The Shadowserver Foundation — a
-self-described "altruistic, public benefit, nonprofit organization" that
-scans the internet and reports findings free to network owners and national
-CERTs. Each carried roughly 1,600 abuse reports and a 100% AbuseIPDB
-confidence score. Acting on that score would consume analyst time on a
-benign scan.
+Script: `inspect_nested.py`
 
-The operational consequence is asymmetric. The nine externally-unknown
-addresses account for **533 of the 691 IP-bearing alerts (77.1%)**, while the
-four addresses only external intelligence flagged account for 6 alerts
-(0.9%). A Tier-1 system relying on crowd-sourced reputation alone would have
-had no signal on three quarters of the attack traffic in this corpus.
+### Finding 3 — the corpus contains no serious alert
 
-Design response: both verdicts are retained separately with their provenance
-in `per_source`; a verified allowlist corrects known research scanners with
-the reason recorded in the audit trail; and no single source may drive
-escalation alone.
+Wazuh levels present: `{3: 499, 4: 4, 5: 231, 8: 4}`. Nothing reaches level
+10, so after mapping:
 
-Reproduce with `python compare_reputation.py`.
+| severity | count | share |
+|---|---:|---:|
+| Critical | 0 | 0.0% |
+| High | 0 | 0.0% |
+| Medium | 4 | 0.5% |
+| Low | 232 | 31.4% |
+| Info | 502 | 68.0% |
 
-**6. Measured LLM cost is roughly twenty times below the design estimate.**
-The original design budgeted about 3,500 tokens and $0.0075 per run.
-Measured on real alerts, the hunter agent uses **657 tokens (463 in, 194
-out) and about $0.00014** per enrichment. The difference is architectural
-rather than incidental: the model receives about 460 tokens of *curated
-facts* assembled by deterministic tools, not a raw alert dump. Reproduce with
-`python test_llm.py`.
+A system whose escalation gate depends on rule severity alone would escalate
+**nothing, ever**, on this data. That constraint drives findings 15 and 17.
 
-**7. A2A transport costs 444 ms per agent call on this machine.**
+Script: `analyse.py`
 
-Measuring the transport requires isolating it from the language model, whose
-latency (4–7 s, varying by more than a second between identical calls)
-otherwise swamps it. The triage node calls no model, so timing it ten times
-under each transport measures the protocol alone:
+### Finding 4 — unwrapping recovers evidence that was already there
 
-| Transport | Median | Mean | Stdev | n |
-|-----------|--------|------|-------|---|
-| in-process | **1.4 ms** | 1.6 ms | 0.6 ms | 10 |
-| A2A | **445.1 ms** | 449.9 ms | 42.4 ms | 10 |
+Unwrapping the nested alerts recovers **46 source IP addresses** and
+**466 host names** that the surface record does not expose. Classification
+coverage rises from **96.5% to 99.6%**, leaving 3 unclassifiable alerts.
 
-That is **443.7 ms of overhead per agent call, a factor of 318**. For the
-current two-agent pipeline the transport accounts for roughly 887 ms, or
-about **20% of a 4.5 s enriched run**. Adding the forensics and reporter
-agents would raise it to roughly 1.8 s.
+Attack-type distribution after unwrapping and after the corrections in
+finding 13:
 
-A single wall-clock comparison between the two modes is **confounded** and
-must not be used: the measured A2A run completed in 4476 ms while the
-in-process runs took 5955 ms and 6869 ms, so A2A appeared *faster* despite
-carrying ~900 ms more transport. That is an artefact of LLM latency variance,
-not a property of the protocol.
+| attack type | count | share |
+|---|---:|---:|
+| BruteForce | 622 | 84.3% |
+| WebAttack | 73 | 9.9% |
+| NormalActivity | 34 | 4.6% |
+| Persistence | 4 | 0.5% |
+| Unknown | 3 | 0.4% |
+| PrivilegeEscalation | 2 | 0.3% |
 
-*Known optimisation.* The client currently re-fetches the Agent Card and
-builds a fresh HTTP client on every call, so each agent invocation costs two
-round trips plus connection setup. This is correct discovery behaviour but
-wasteful for repeated calls to the same agent. Caching the resolved card for
-the lifetime of a run is the obvious next step and would be expected to cut
-the overhead substantially. It is deliberately left unoptimised here so that
-the measured figure reflects the straightforward implementation.
+Script: `analyse.py`
 
-Reproduce with `python measure.py` under each `SOC_A2A_MODE`.
+### Finding 5 — first-party and third-party reputation agree only 57.4%
 
-**8. Reproducibility is partial by design, and the boundary is measurable.**
+Comparing a reputation built from the corpus itself (how often an address
+appears) against AbuseIPDB, the two sources agree on **57.4%** of addresses.
+The 42.6% disagreement decomposes into three distinct causes:
 
-| Scorer | Runs | Distinct results | Spread |
-|--------|------|------------------|--------|
-| Deterministic rules | 500 | **1** (score 43) | none |
-| Language model | 16 | **3** (43, 48, 55) | range 12, stdev 4.17 |
+| cause | addresses | what it means |
+|---|---:|---|
+| research scanners | 7 | Shadowserver and similar: noisy, not hostile |
+| external blind spot | 9 | AbuseIPDB knows it, our corpus does not |
+| local blind spot | 4 | our corpus knows it, AbuseIPDB does not |
 
-The model reproduced the rule-based score in **13 of 16 runs (81%)** and
-deviated upward in 3 (19%), with a maximum deviation of **+12 points**. The
-cause is recorded in the audit trail: the configured model rejects
-`temperature=0`, so `temperature_pinned` is false and the model runs at its
-default sampling temperature.
+**77.1% of IP-bearing alerts** came from addresses AbuseIPDB had never heard
+of. A system trusting only third-party reputation would be blind to three
+quarters of its own traffic.
 
-This is precisely why severity — the field that decides whether a human is
-woken — is computed by rules, while the model's contribution is bounded to
-prose and a single advisory score. The system does not claim end-to-end
-reproducibility; it claims reproducibility for the decisions that require it,
-and it can show where the boundary lies.
+The research scanners are handled explicitly: `identify_research_scanner()`
+recognises them by organisation and by network (`64.62.156.0/24` →
+Shadowserver), sets the verdict to `clean`, caps confidence at 20, and
+appends `ScannerAllowlist` to the sources so the downgrade is visible rather
+than silent.
 
-Reproduce with `python measure.py`.
+Scripts: `compare_reputation.py`, `test_intel.py`
+
+### Finding 6 — the language model costs about 20× less than the design estimate
+
+One enrichment: **657 tokens, ≈$0.00013**. The original design document
+estimated roughly twenty times that. The cache helps further: the corpus
+contains only **47 unique IP addresses**, giving a **93.2%** cache hit rate
+on reputation lookups.
+
+Script: `test_llm.py`
+
+### Finding 7 — A2A costs 444 ms per call; wall-clock comparison is confounded
+
+Measured on the LLM-free triage node, 20 runs each:
+
+| transport | median |
+|---|---:|
+| A2A over JSON-RPC | **445.1 ms** |
+| in-process call | **1.4 ms** |
+
+A factor of **318×**, or roughly **20% of a two-agent run**.
+
+An earlier version of this finding compared single-run wall-clock times and
+concluded A2A was *faster*. That conclusion was wrong: language-model
+latency varies by more than a second between calls, which swamps a 444 ms
+transport difference. The claim was withdrawn and re-measured on a node that
+makes no model call at all.
+
+**A known, deliberate non-optimisation:** the client re-resolves the Agent
+Card on every call — two round trips plus connection setup. Caching resolved
+cards would reduce the figure. It is left unoptimised so the measurement
+reflects the straightforward implementation of the protocol rather than a
+tuned one.
+
+Script: `measure.py`
+
+### Finding 8 — reproducibility is partial by design
+
+| layer | runs | distinct results |
+|---|---:|---:|
+| deterministic rules | 500 | **1** |
+| language model | 16 | **3** (81% matched, max deviation +12) |
+
+The rule layer is a pure function: same alert, same verdict, forever. The
+generative layer is not, and no prompt makes it so. The system is therefore
+built so that only *prose* comes from the variable layer, and every number a
+reviewer might act on comes from the reproducible one.
+
+Script: `measure.py`
 
 ### Finding 9 — host names were recoverable from the log payload
 
 `agent.name` is anonymised to `xxx` in the published dataset, but 93.6% of
 records carry a syslog-format `full_log` whose second field is the real host.
-Parsing it raised alerts with a usable host name from ~6% to **691/738 =
-93.6%** and revealed four distinct hosts. The remaining 47 are nginx access
-logs, whose format has no host field at all.
+Parsing it raised alerts with a usable host name from roughly 6% to
+**691/738 = 93.6%** and revealed four distinct hosts. The remaining 47 are
+nginx access logs, whose format has no host field at all.
 
 Script: `test_forensics.py` (Part 1)
 
@@ -357,56 +287,65 @@ Recovering the host names made the shape of the data visible:
 | prod-server | 20 | 2.7% |
 
 The forensics detector therefore reports **0.0% lateral movement** and
-**0.7% horizontal spread** across all 738 alerts. This is the correct
-answer: 85.8% of alerts come from one machine, so there is nowhere to move
-to. The dataset cannot exercise multi-host detection.
+**0.7% horizontal spread (5 of 738)**. This is the correct answer: 85.8% of
+alerts come from one machine, so there is nowhere to move to. The dataset
+cannot exercise multi-host detection.
 
-The detector is instead validated against three labelled synthetic
-incidents (`tools/scenarios.py`), dated 2030 and prefixed `DEMO-` so they
-can never be read as evidence: one true lateral movement, and two traps
-(a generic `admin` account on three hosts, and a named account that reached
-three hosts without a single success). Only the first is flagged.
+The detector is instead validated against three labelled synthetic incidents
+(`tools/scenarios.py`), dated 2030 and prefixed `DEMO-` so they can never be
+read as evidence: one true lateral movement, and two traps — a generic
+`admin` account on three hosts, and a named account that reached three hosts
+without a single success. **Only the first is flagged, 11/11 correct.**
 
-An earlier version of this detector, using the rule "same user on two or
-more hosts", flagged **100%** of alerts. The flaw was conceptual rather
-than technical: horizontal scanning had been conflated with lateral
-movement. The corrected detector requires a non-generic identity with a
-recorded successful authentication on more than one host inside a bounded
-window, and reports scanning separately.
+An earlier version of this detector, using the rule *"same user on two or
+more hosts"*, flagged **100%** of alerts. The flaw was conceptual rather than
+technical: horizontal scanning had been conflated with lateral movement. The
+corrected detector requires a non-generic identity with a recorded successful
+authentication on more than one host inside a bounded window, and reports
+scanning separately.
 
-Scripts: `test_forensics.py` (Parts 3 and 6), `tools/forensics.py`
+Scripts: `test_forensics.py` (Parts 3 and 7), `tools/forensics.py`
 
 ### Finding 11 — a time window must be centred, not merely bounded
 
-The first timeline query used `ORDER BY timestamp LIMIT 25` over a ±60
-minute window. In a dense window this returns the oldest 25 events — the
-hour *before* the alert — and excludes the alert being investigated. The
-fault was visible in the output: a limit of 25 produced 26 events, because
-a fallback had to re-insert the focus alert into its own timeline.
+The first timeline query used `ORDER BY timestamp LIMIT 25` over a ±60 minute
+window. In a dense window this returns the oldest 25 events — the hour
+*before* the alert — and excludes the alert being investigated. The fault was
+visible in the output: a limit of 25 produced **26** events, because a
+fallback had to re-insert the focus alert into its own timeline.
 
 Ordering by `ABS(julianday(timestamp) - julianday(focus))` and re-sorting
-chronologically places the alert at the centre and narrows the window to
-the interval that actually contains activity (60 minutes down to 24 on the
-case measured).
+chronologically places the alert at the centre and narrows the window to the
+interval that actually contains activity (60 minutes down to 24 on the case
+measured).
 
-Script: `tools/history.py` (`alerts_near`)
+A second, related defect: an alert with no source IP and a generic account
+failed the actor test against its own database row and was labelled a
+stranger in its own timeline. The focus alert is the actor by definition. The
+test now asserts that no window contains zero events belonging to its own
+actor.
+
+Script: `tools/history.py` (`alerts_near`), `test_forensics.py` (Part 6)
 
 ### Finding 12 — a field-trust rule held in a comment gets violated
 
 Step 9 removed `full_log` from the triage classifier, because raw machine
 text caused the same rule description to be classified two different ways.
-The reason was recorded in a docstring. Three steps later the forensics
-stage inference searched `full_log` again.
+The reason was recorded in a docstring. Three steps later the forensics stage
+inference searched `full_log` again.
 
-Measured impact on current answers: none. The change removes a latent
-inconsistency rather than a visible defect, which makes it the harder class
-of fault to find — nothing fails, the system is simply one unlucky log line
-away from disagreeing with itself.
+The impact was not zero. Restricting the search to curated fields removed the
+corpus's only `Execution` classification: it had been produced by the phrase
+"command executed" appearing somewhere in a raw log line, while the alert's
+own rule description described an access attempt. The alert now reports
+`InitialAccess`, which its description supports. **A field the system was
+never meant to trust had already produced one wrong answer, and nothing had
+failed to reveal it.**
 
-Both modules now read the same trusted fields: the curated rule
-description, the triggering alert's description, and Wazuh's rule groups.
-The lesson for the architecture is that a constraint shared by two modules
-belongs in a shared function, not in prose.
+Both modules now read the same trusted fields: the curated rule description,
+the triggering alert's description, and Wazuh's rule groups. The
+architectural lesson is that a constraint shared by two modules belongs in a
+shared function, not in prose.
 
 Scripts: `tools/severity.py`, `tools/forensics.py`
 
@@ -414,59 +353,92 @@ Scripts: `tools/severity.py`, `tools/forensics.py`
 
 The triage rules reported 12 `Vulnerability` alerts. Reading them:
 
-> The CVE-2025-24528 that affected libkrb5-3 **was solved** due to a
-> package update
+> The CVE-2025-24528 that affected libkrb5-3 **was solved** due to a package
+> update
 
-These are patches being applied. The classifier matched the token `cve-`
-and stopped. An analyst reading the queue would conclude the estate carries
+These are patches being applied. The classifier matched the token `cve-` and
+stopped. An analyst reading the queue would conclude the estate carries
 unpatched CVEs; the records say the opposite.
 
 The phrase `was solved` is now matched by the non-threat family, which is
-evaluated first, so a remediation notice is reported as normal activity and
-a genuine CVE alert still reaches `Vulnerability`. After the correction the
+evaluated first, so a remediation notice is reported as normal activity and a
+genuine CVE alert still reaches `Vulnerability`. After the correction the
 corpus contains **no unpatched-vulnerability alerts at all** — only
 remediation notices.
 
 A related design decision is left deliberately in place and flagged here:
 `Vulnerability` is treated as a non-threat and forced to `Info`. That is
 correct for "not an active attack" and arguably wrong for queue
-prioritisation, since an unpatched CVE is actionable. The corpus cannot
-settle the question, because it contains no such alert.
+prioritisation. The corpus cannot settle the question, because it contains no
+such alert.
 
-A third stage value, `NotApplicable`, now separates "this is not attack
-activity" (a log rotation, a logout, a patch — about 24 alerts) from
-`Undetermined`, "I could not tell" (about 4). The two lead an analyst to
-opposite actions, so collapsing them into one label destroys the signal.
+A third stage value, `NotApplicable`, separates "this is not attack activity"
+(**21** alerts — log rotations, logouts, patch notices) from `Undetermined`,
+"I could not tell" (**7** alerts, 0.9%: three connection resets, two
+uncategorised nginx messages, one active-response unblock, one empty
+description). The two lead an analyst to opposite actions, so collapsing them
+into one label destroys the signal. The residual 0.9% is left as
+`Undetermined` deliberately: every remaining case is one or two records, and
+a keyword added to fix a single row is over-fitting, not classification.
 
-Scripts: `test_forensics.py` (Parts 3 and 7), `tools/severity.py`
+Stage distribution across the corpus:
 
-A third stage value, `NotApplicable`, separates "this is not attack
-activity" (21 alerts — log rotations, logouts, patch notices) from
-`Undetermined`, "I could not tell" (7 alerts, 0.9%: three connection
-resets, two uncategorised nginx messages, one active-response unblock, one
-empty description). The two lead an analyst to opposite actions, so
-collapsing them into one label destroys the signal. The residual 0.9% is
-left as `Undetermined` deliberately: every remaining case is one or two
-records, and a keyword added to fix a single row is over-fitting, not
-classification.
+| stage | count |
+|---|---:|
+| InitialAccess | 704 |
+| NotApplicable | 21 |
+| Undetermined | 7 |
+| Persistence | 4 |
+| PrivilegeEscalation | 2 |
 
-The scale of the problem was then measured across the corpus. Of all
-timeline events built for all 738 alerts, only a small minority share the
-focus alert's source address or identity; the large majority belong to a
-different attacker who happened to be active in the same 60-minute window,
-and most windows are more than half strangers. Every one of those events
-was previously presented to the model as part of the same incident.
+Scripts: `test_forensics.py` (Parts 3 and 8), `tools/severity.py`
 
-Building that measurement exposed a second defect: an alert with no source
-IP and a generic account failed the actor test against its own database
-row, and was labelled a stranger in its own timeline. The focus alert is
-the actor by definition, and is now treated as such. The test asserts that
-no window contains zero events belonging to its own actor.
+### Finding 14 — the language layer produced a correct account of incorrect facts
+
+Given a verified fact block, the model wrote a four-sentence incident
+narrative that obeyed every constraint in its prompt — and attributed to the
+subject three authentication failures belonging to a different source address
+and a different account, which fell inside the same 60-minute window.
+
+The model was faithful. The evidence was wrong. The timeline query was
+time-scoped ("everything within ±60 minutes") where an incident is
+actor-scoped ("everything by this actor"), and in a window containing more
+than one attacker those sets differ.
+
+Measured across the whole corpus:
+
+| | events | share |
+|---|---:|---:|
+| timeline events built | 18,450 | |
+| belong to **this** actor | 5,136 | 27.8% |
+| belong to **another** actor | 13,314 | **72.2%** |
+| windows more than half foreign | 672/738 | **91.1%** |
+
+Every one of those 13,314 events was previously offered to the model as part
+of the same story.
+
+The fix partitions the evidence before generation. Events sharing the focus
+alert's source address, or its account when that account is a real identity
+rather than a shared one, are presented under `THIS ACTOR`; the remainder
+appear under `OTHER ACTORS` with an explicit instruction not to attribute
+them. The deterministic analysis also states how many events in the window
+belong to someone else, so a reviewer reading the machine-checked sentence is
+told before reading the prose. After the change, the model dropped the
+foreign events entirely.
+
+Two architectural points follow. First, the generation step was not the weak
+link: a prompt rule cannot repair an attribution boundary the evidence never
+contained. Second, the fault was visible in the model's *input*, which is why
+every fact block in this project is printable and is printed in its test —
+the defect was found by reading what the model was given, not by doubting
+what it said.
+
+Scripts: `test_forensics_llm.py` (Part 1), `test_forensics.py` (Part 6)
 
 ### Finding 15 — triage and forensics disagree on the same alerts, and the disagreement is the architecture
 
 The two agents were given the five alerts of a confirmed lateral-movement
-incident (`tools/scenarios.py`, synthetic and labelled):
+incident (synthetic and labelled):
 
 | alert | triage, one alert alone | forensics, in context | triage escalates? |
 |---|---|---|---|
@@ -476,261 +448,333 @@ incident (`tools/scenarios.py`, synthetic and labelled):
 | DEMO-LM-04 | NormalActivity / Info | LateralMovement | no |
 | DEMO-LM-05 | PrivilegeEscalation / Low | LateralMovement | no |
 
-Triage would auto-close 5 of 5. Forensics flags 5 of 5.
+**Triage would auto-close 5 of 5. Forensics flags 5 of 5.**
 
 Triage is not wrong. `PAM: Login session opened.` is normal activity, and a
 successful authentication at Wazuh level 3 is the most ordinary event in a
-Linux estate. Each alert, judged alone, is noise. They are an intrusion
-only together.
+Linux estate. Each alert, judged alone, is noise. They are an intrusion only
+together.
 
 Two consequences follow:
 
 1. Context is not an enhancement layered on triage. It answers a different
-   question and returns a different answer, which is the empirical case for
-   a multi-agent design rather than one larger classifier.
-
-2. `escalate_to_tier2` from the triage agent is an INPUT to routing, never
+   question and returns a different answer, which is the empirical case for a
+   multi-agent design rather than one larger classifier.
+2. `escalate_to_tier2` from the triage agent is an **input** to routing, never
    the routing decision. A graph that branched on it would auto-close this
-   incident five times. This is a hard constraint on the orchestration
-   graph in Step 18.
-
-It also sharpens finding 3: no alert in the real corpus reaches High
-severity, so the rule layer's escalation gate never fires at all. A system
-whose escalation depends on rule severity alone would escalate nothing,
-ever, on this data.
+   incident five times.
 
 Scripts: `tools/severity.py`, `tools/forensics.py`, `tools/scenarios.py`
 
-### Finding 16 — the A2A transport is result-identical, and the audit trail proves where it is not
+### Finding 16 — the A2A transport is result-identical, and the audit trail shows where it is not
 
-The same alert was run through triage, hunter and forensics twice, once
-with `SOC_A2A_MODE=1` (three agents over JSON-RPC, discovered through their
-Agent Cards) and once with `SOC_A2A_MODE=0` (the same functions called
-in-process):
+The same alert was run through all four agents twice, once with
+`SOC_A2A_MODE=1` (agents discovered through their Agent Cards and called over
+JSON-RPC) and once with `SOC_A2A_MODE=0` (the same functions in-process):
 
 | | over A2A | in process |
 |---|---|---|
 | triage | NormalActivity / Info (score 10, conf 90%) | identical |
 | hunter | score 10/100, 1 IOC, worst clean | identical |
-| forensics | LateralMovement, 8 events (5 this actor), lateral=True spread=True | identical |
-| tokens | 873 | 832 |
+| forensics | LateralMovement, 8 events (5 this actor), lateral=True | identical |
+| report | ESCALATE, ~4.5 KB | identical decision |
+| tokens | 932 | 838 |
 | errors | none | none |
 
-Every rule-derived value is identical. Only the token count differs, and it
-differs for a reason already recorded in finding 8: the language model's
-output length varies between calls. The distinction is visible in the audit
-trail rather than inferred — each run logs which transport it used, which
-layer produced each claim, and the exact token counts the remote agent
-reported back through A2A artifact metadata.
+Every rule-derived value is identical. Only the token count differs, for the
+reason already recorded in finding 8: the model's output length varies
+between calls. The distinction is visible in the audit trail rather than
+inferred — each run logs which transport it used, which layer produced each
+claim, and the exact token counts the remote agent reported back through A2A
+artifact metadata.
 
-Scripts: `test_three_nodes.py`, `nodes/a2a_client.py`
+Scripts: `test_pipeline.py`, `test_graph.py`, `nodes/a2a_client.py`
 
 ### Finding 17 — the multi-agent gate escalates what a single agent closes
 
-The escalation decision is the union of every agent's signals, computed
-deterministically before any language model is contacted. Measured across
-all 738 alerts with triage and forensics (the hunter is excluded here
-because it needs a network lookup per alert):
+The escalation decision is the **union** of every agent's signals, computed
+deterministically before any language model is contacted. Measured across all
+738 alerts with triage and forensics:
 
 | | alerts | share |
 |---|---:|---:|
 | triage alone escalates | 0 | 0.0% |
 | triage + forensics escalates | 6 | 0.8% |
-| of which triage would have CLOSED | 6 | 0.8% |
+| of which triage would have **closed** | 6 | 0.8% |
 | explicitly suppressed as non-attack | 34 | 4.6% |
 
 Every alert the system escalates is one a single-agent design would have
 auto-closed, because no alert in this corpus reaches High severity
 (finding 3) and the rule gate therefore never fires at all.
 
-The decision was verified to be model-independent: identical across a
-working model, an injected `LLMUnavailable`, and an injected `KeyError`.
-The report also states the disagreement rather than reconciling it, and
-both independent runs of the summary model wrote the sentence "The agents
-disagree" unprompted by anything but the rule in its system prompt.
+That measurement excludes the hunter, whose reputation lookups are measured
+separately by `test_gate.py` (which runs all three agents from the cache in
+about a second). On a live run of a real corpus alert the hunter supplied the
+override on its own: triage said `BruteForce / Low → auto-close` while
+AbuseIPDB returned `malicious, 90%`, and the gate escalated.
 
-Scripts: `test_reporter.py`, `tools/reporter.py`
+The decision was verified **model-independent**: identical across a working
+model, an injected `LLMUnavailable`, and an injected `KeyError`. The report
+also states the disagreement rather than reconciling it, and both independent
+runs of the summary model wrote the sentence *"The agents disagree"*,
+prompted by nothing but the rule in its system prompt.
+
+Scripts: `test_reporter.py`, `test_gate.py`, `tools/reporter.py`
 
 ### Finding 18 — a checkpoint is an untrusted file
 
 Pausing a run writes the state to a checkpoint; resuming reads it back.
 LangGraph 1.2.16 warned on every resume that deserialising our domain types
-is permitted only for now and "will be blocked in a future version". The
-underlying reason is a security one the warning only hints at: if an
-attacker can write to the checkpoint store, a permissive deserialiser is a
-path to code execution.
+is permitted only for now and *"will be blocked in a future version"*. The
+underlying reason is a security one the warning only hints at: if an attacker
+can write to the checkpoint store, a permissive deserialiser is a path to
+code execution.
 
 The graph therefore builds its serialiser in strict mode
-(`allowed_msgpack_modules=None`) and allow-lists exactly the fifteen
-contract classes the state can contain, by class rather than by module
-name, so a typo is an import error rather than a silent failure to restore
-a paused run. The test suite is run with `-W error::UserWarning`, which
-turns any unlisted type into a test failure.
+(`allowed_msgpack_modules=None`) and allow-lists exactly the **fifteen**
+contract classes the state can contain, by class rather than by module name,
+so a typo is an import error rather than a silent failure to restore a paused
+run. The whole graph test suite is run with `-W error::UserWarning`, which
+turns any unlisted type into a test failure. It passes in both transports.
 
-Script: `graph.py` (`make_serializer`), `test_graph.py`
+The same suite covers the two graph behaviours that fail *silently* when they
+are wrong:
 
----
+- a skipped branch must not block the join — `reporter` still runs when
+  `hunter` is skipped for an alert with no source address
+- an unrecognised human answer at the gate must resolve to `escalated`, never
+  `approved`
 
-## Design decisions
-
-**Triage uses no AI.** Severity decisions must be reproducible: the same
-alert must always produce the same result. The triage agent applies fixed
-rules and records every signal that fired in `matched_signals`. Running one
-alert 500 times yields exactly one distinct result. AI is used where it is
-strong — reasoning and writing — in the hunter, forensics and reporter agents.
-
-**The language model's output contract is two fields wide.** `HuntSynthesis`
-contains a length-bounded hypothesis and an integer 0 to 100. The model never
-chooses an attack type, a severity, a MITRE technique or an IP verdict: those
-are produced by deterministic tools and handed to it as facts. The surface on
-which a hallucination could land is therefore two bounded fields, and the
-exact fact block sent to the model is printable for inspection.
-
-**Every value is validated by a contract.** Pydantic models in
-`core/models.py` and `core/contracts.py` define closed vocabularies. An
-invented severity such as `"VERY BAD"` raises an error instead of entering the
-system. Contracts are enforced at both ends of every network boundary: the
-agent validates what arrives, and the client validates what returns.
-
-**Structured output is enforced in two independent layers.** Layer 1 uses the
-provider's `json_schema` mode. Layer 2, used when a model or provider does
-not support it, places the schema in the prompt and validates the reply with
-Pydantic locally. Layer 1 is a provider feature that varies by model; layer 2
-is this system's own guarantee.
-
-**Fallbacks cannot themselves fail.** `core/llm.py` guarantees that the only
-exception escaping `structured_call` is `LLMUnavailable`, so a caller can
-always fall back to deterministic synthesis. When that happens, the reason is
-recorded in the audit trail and stated in the generated text — the system
-never passes a rule-based summary off as model reasoning.
-
-**Per-model API constraints are handled at runtime.** The configured model
-rejected `temperature=0`, a parameter the previous generation accepted. The
-LLM layer detects that specific rejection, rebuilds the client without the
-parameter, retries, and records in the audit trail whether temperature was
-pinned — so a reproducibility claim is never made when it does not hold. See
-finding 8 for the measured consequence.
-
-**The classifier reads curated fields only.** It searches rule descriptions
-and Wazuh rule groups, never the raw `full_log`. Searching free text caused
-the same alert description to be classified two different ways.
-
-**The taxonomy was revised from data, not designed in advance.** Two
-non-threat categories — `NormalActivity` and `Vulnerability` — were added
-after the real corpus showed that successful logins and resolved CVEs were
-being forced into attack families. A classifier with no way to say "nothing
-is happening here" is obliged to be wrong.
-
-**Threat intelligence is cached and degrades gracefully.** The corpus
-contains 691 IP-bearing alerts but only 47 unique addresses, so caching
-removes 93.2% of lookups. With no external key available, reputation is
-derived from the corpus itself and labelled `LocalCorpus`, so the system
-produces real verdicts offline without claiming external provenance.
-
-**Distribution surfaced implicit dependencies.** Two became visible only once
-agents ran in separate processes: the local reputation source needs an
-address's frequency across the whole corpus, which a single-alert agent
-cannot know, so `HuntRequest` passes it explicitly; and token accounting had
-to be carried back in A2A artifact metadata, so cost metrics stay accurate
-when the work happens elsewhere.
+Scripts: `graph.py` (`make_serializer`), `test_graph.py`
 
 ---
 
-## Project structure
+## Withdrawn claims
 
-```text
-soc-triage-langgraph/
-|
-+-- core/
-|   +-- config.py         # every tunable setting, in one place
-|   +-- models.py         # Alert - the input contract
-|   +-- contracts.py      # what each agent must return
-|   +-- state.py          # SOCState - the shared memory, with reducers
-|   +-- preprocessor.py   # raw dataset -> validated Alerts
-|   +-- llm.py            # the model client, schema enforcement, cost
-|
-+-- tools/
-|   +-- severity.py       # deterministic triage logic
-|   +-- mitre.py          # MITRE ATT&CK mapping, verified against attack.mitre.org
-|   +-- threat_intel.py   # IP reputation: local corpus, AbuseIPDB, VirusTotal
-|   +-- hunter.py         # evidence gathering plus LLM synthesis
-|
-+-- a2a_agents/
-|   +-- triage_agent.py   # Agent Card plus executor
-|   +-- hunter_agent.py   # Agent Card plus executor
-|   +-- server.py         # hosts every agent on one port
-|
-+-- nodes/
-|   +-- a2a_client.py     # generic A2A caller, reused by every node
-|   +-- triage_node.py    # LangGraph node
-|   +-- hunter_node.py    # LangGraph node
-|
-+-- data/                 # dataset and caches land here, not committed
-+-- run_agents.py         # start the A2A server
-+-- *.py                  # analysis, test and measurement scripts
+Two claims were made, tested, and retracted. They are kept here because a
+method that never produces a retraction is a method that is not being tested.
+
+1. **"The dataset labels are ground truth."** Withdrawn after finding 1:
+   the labels are a pure function of `rule.level` and reproducing them
+   requires no classifier.
+2. **"A2A is faster than in-process calling."** Withdrawn after finding 7:
+   the comparison used single-run wall-clock times, which language-model
+   latency variance swamps. Re-measured on a model-free node, A2A is 318×
+   slower per call.
+
+A third set of numbers was corrected rather than withdrawn: an early
+lateral-movement rate of "2.5%" was computed on a locally-built test fixture
+rather than on the real corpus. The corpus figure is 0.0% (finding 10).
+
+---
+
+## Architecture
+
 ```
+soc-triage-langgraph/
+├── core/
+│   ├── config.py        every setting, read from the environment
+│   ├── contracts.py     the closed vocabulary: enums + output models
+│   ├── models.py        the Alert input contract (frozen, validated)
+│   ├── preprocessor.py  load, unwrap, normalise, recover host names
+│   ├── llm.py           the model layer: structured output, retries,
+│   │                    pricing, and "only LLMUnavailable escapes"
+│   └── state.py         SOCState, reducers, event and usage factories
+├── tools/
+│   ├── severity.py      triage rules (no AI)
+│   ├── mitre.py         ATT&CK mapping, every ID verified live
+│   ├── threat_intel.py  three reputation sources, worst verdict wins,
+│   │                    file cache, research-scanner allowlist
+│   ├── hunter.py        evidence gathering + hypothesis synthesis
+│   ├── history.py       the SQLite alert history
+│   ├── forensics.py     timeline, actor partition, movement detection,
+│   │                    narrative synthesis
+│   ├── scenarios.py     labelled synthetic incidents (prefixed DEMO-)
+│   └── reporter.py      the escalation gate and the incident report
+├── a2a_agents/
+│   ├── triage_agent.py      agent 1 — Agent Card + executor
+│   ├── hunter_agent.py      agent 2
+│   ├── forensics_agent.py   agent 3 (the only stateful one)
+│   ├── reporter_agent.py    agent 4
+│   └── server.py            all four on one port, different paths
+├── nodes/
+│   ├── a2a_client.py     generic A2A caller; knows nothing about security
+│   ├── triage_node.py    ┐
+│   ├── hunter_node.py    │ each: choose transport, call, record events
+│   ├── forensics_node.py │
+│   ├── reporter_node.py  ┘
+│   └── hitl_node.py      the human gate, via interrupt()
+├── graph.py              the graph, routers, and strict checkpoint serde
+├── run_graph.py          run the system on one alert, live
+├── run_agents.py         start the A2A host
+├── download_data.py      fetch the corpus
+├── analyse.py            findings 3, 4
+├── verify.py             finding 1
+├── inspect_nested.py     finding 2
+├── inspect_classes.py    label and class distribution
+├── compare_reputation.py finding 5
+├── measure.py            findings 7, 8
+├── test_intel.py         the reputation layer and its cache
+├── test_llm.py           finding 6
+├── test_node.py          one node, both transports
+├── test_two_nodes.py     triage + hunter
+├── test_pipeline.py      all four agents, both transports (finding 16)
+├── test_forensics.py     findings 9, 10, 11, 13, 14
+├── test_forensics_llm.py the narrative layer, five failure paths
+├── test_reporter.py      finding 17, model-independence
+├── test_graph.py         finding 18, routing, interrupt/resume
+├── test_gate.py          the complete three-agent gate
+├── data/                 corpus, cache, SQLite history (all git-ignored)
+├── requirements.txt
+├── .env                  keys — GIT-IGNORED, never commit
+└── .gitignore
+```
+
+### Why A2A at all
+
+A2A is a genuine cost: 444 ms per call, and context that was free inside one
+process must now be passed explicitly (the hunter cannot know how often an
+address appears in the corpus, so the caller sends `local_hits`). It buys
+three things:
+
+1. **Published capability.** Each agent serves an Agent Card at
+   `/.well-known/agent-card.json` describing what it does and what it
+   returns. A caller who knows only the address can discover the rest.
+2. **A real boundary.** Every agent validates its input against a Pydantic
+   contract at the door, because anything arriving over a network is
+   untrusted — including another one of our own agents.
+3. **Replaceability.** Moving an agent to another machine changes an address
+   in a card, not a line of orchestration code.
+
+Four agents in one process use about 150 MB; four separate servers would use
+about 600 MB. Each still has its own card and its own endpoint, so it is
+genuinely A2A — just efficiently hosted.
+
+### What the language model is and is not allowed to do
+
+| | produced by |
+|---|---|
+| attack type, severity, escalation signals | deterministic rules |
+| indicator verdicts, MITRE techniques | tools and external sources |
+| timeline, actor split, attack stage | database queries and rules |
+| the prose | the language model |
+
+The constraint is structural, not instructional. `ForensicsNarrative` has two
+fields — `narrative` and `containment_priority` — and no field for a stage or
+a verdict. `ReportSummary` has `summary` and `confidence` and no field for
+`escalate`. A prompt saying "do not change the decision" can be ignored; a
+schema with nowhere to put one cannot.
+
+Every model call has five paths, all of which return a usable result: skipped
+deliberately, no key, success, documented failure, and unexpected crash. The
+last one exists because the "only `LLMUnavailable` escapes" guarantee was
+broken once, in Step 13, and killed a running script.
+
+---
+
+## Running the tests
+
+With the agent host running in another window:
+
+```cmd
+python test_graph.py
+python test_pipeline.py
+python test_reporter.py
+python test_forensics.py
+python test_forensics_llm.py
+python test_two_nodes.py
+```
+
+To prove the checkpoint allowlist is complete, promote warnings to errors:
+
+```cmd
+python -W error::UserWarning test_graph.py
+```
+
+The corpus-wide measurements need no server:
+
+```cmd
+python analyse.py
+python verify.py
+python measure.py
+```
+
+The complete escalation gate refuses to run without offline mode, so it
+cannot accidentally fire 738 model calls:
+
+```cmd
+set SOC_OFFLINE_MODE=1
+python test_gate.py
+set SOC_OFFLINE_MODE=0
+```
+
+Offline mode still reads the reputation cache, so the verdicts are the real
+ones; it blocks only new network calls and the model, neither of which can
+affect the decision.
+
+---
+
+## Security notes
+
+- `.env` is git-ignored. **Never commit a key.** No key is ever printed:
+  tests report only `present` or `NOT SET`.
+- An API key that has appeared in a log, a chat, a screenshot or a commit is
+  compromised permanently. Revoke and rotate it rather than deleting the
+  message.
+- Git-ignored: `.env`, `data/wazuh_formatted_alerts.json`, `data/*.db`,
+  `data/chroma/`, `playground.py`, `.venv/`.
+- The checkpoint store is treated as untrusted input (finding 18).
+- Every A2A boundary validates its input against a contract, including
+  boundaries between our own agents.
+- The synthetic incidents in `tools/scenarios.py` are dated 2030, prefixed
+  `DEMO-`, carry `raw={"_synthetic": True}`, and use RFC 5737 documentation
+  addresses, so they can never be mistaken for evidence or for a real host.
 
 ---
 
 ## Status
 
-### Foundation
-- [x] Step 1 — Environment prepared
-- [x] Step 2 — Project and dependencies installed
-- [x] Step 3 — Connected to GitHub
-- [x] Step 4 — The Alert contract (input validation)
-- [x] Step 5 — Closed vocabularies and the Triage contract
-- [x] Step 6 — All five agent contracts complete
-- [x] Step 7 — The shared memory (SOCState) with reducers
-
-### Triage agent (deterministic)
-- [x] Step 8 — Deterministic triage logic
-- [x] Step 9 — Real dataset loaded and measured
-- [x] Step 9B — Classifier corrected from real evidence (96.5% to 99.6%)
-- [x] Step 10 — Triage running as a real A2A agent
-- [x] Step 11 — LangGraph node calling A2A, with transport switch
-
-### Hunter agent (tools plus LLM)
-- [x] Step 12 — MITRE ATT&CK mapping and threat intelligence with caching
-- [x] Step 12B — Per-source verdicts kept separately for comparison
-- [x] Step 12C — Research-scanner allowlist (Shadowserver, Censys, Expanse)
-- [x] Step 12D — First-party against third-party reputation decomposed
-- [x] Step 13 — LLM layer with two-level schema enforcement
-- [x] Step 13B — Self-healing temperature handling, crash-proof fallback
-- [x] Step 14 — Hunter as a second A2A agent, with metrics across the boundary
-- [x] Step 14B — Transport overhead and reproducibility measured in isolation
-
-### Remaining
-- [x] Step 15 — Forensics tools: host recovery, SQLite history, movement detection
-- [x] Step 16 — Forensics agent: narrative synthesis, then A2A (agent 3 of 5)
-- [x] Step 18 — The graph: parallel fan-out, conditional edges, human-in-the-loop
+- [x] Step 1 — Environment, virtual environment, dependencies
+- [x] Step 2 — Project skeleton and packages
+- [x] Step 3 — `core/config.py`, settings from the environment
+- [x] Step 4 — `core/models.py`, the validated `Alert` contract
+- [x] Step 5 — `core/contracts.py`, the closed vocabulary
+- [x] Step 6 — `core/state.py`, `SOCState` and its reducers
+- [x] Step 7 — A2A: the triage agent, the server, the client (agent 1 of 5)
+- [x] Step 8 — First GitHub push, dataset download instructions
+- [x] Step 9 — The real corpus: findings 1–4, preprocessor corrections
+- [x] Step 10 — `tools/severity.py` and `tools/mitre.py`
+- [x] Step 11 — The triage node and the transport switch
+- [x] Step 12 — `tools/threat_intel.py`: three sources, cache, finding 5
+- [x] Step 13 — `core/llm.py`: structured output, retries, finding 6
+- [x] Step 14 — The hunter agent and node (agent 2 of 5)
+- [x] Step 14B — Transport overhead and reproducibility: findings 7, 8
+- [x] Step 15 — Forensics tools: host recovery, SQLite history, movement
+- [x] Step 16 — Forensics narrative and A2A agent (agent 3 of 5)
+- [x] Step 17 — Reporter agent: the escalation gate (agent 4 of 5)
+- [x] Step 18 — The graph: parallel fan-out, conditional edges, HITL
 - [ ] Step 19 — Streamlit interface (five visual layers)
-- [ ] Step 19 — Automated test suite
-- [ ] Step 20 — Evaluation: does the LLM's score add signal over the rules?
-- [ ] Step 21 — Optional: cache resolved Agent Cards, re-measure finding 7
-- [ ] Step 22 — Optional: expose the whole system as one A2A agent
+- [ ] Step 20 — Automated test suite
+- [ ] Step 21 — Evaluation: does the model's score add signal over the rules?
+- [ ] Step 22 (optional) — Cache resolved Agent Cards, re-measure finding 7
+- [ ] Step 23 (optional) — Expose the whole system as one A2A agent
 
 ---
 
-## Methodology note
+## Stack
 
-The implementation sequence was revised seven times in response to
-measurement: the classifier after the real corpus exposed over-matching, the
-reputation layer after a merged score was found to hide its sources, the LLM
-layer after a provider constraint and a crashable fallback were discovered
-under test, and the latency claim after a single-run comparison proved
-confounded by model variance. Each revision is a separate commit with the
-script that produced the evidence, so the decision trail is reproducible
-rather than reconstructed.
+| component | version |
+|---|---|
+| Python | 3.13 |
+| LangGraph | 1.2.16 |
+| a2a-sdk | 1.2.2 |
+| Pydantic | 2.13 |
+| langchain-openai | 1.7.2 |
+| Starlette + uvicorn | A2A host |
+| SQLite | alert history (standard library) |
 
-Two claims were explicitly withdrawn during development rather than
-defended: that the published dataset labels constitute ground truth
-(finding 1), and that a single wall-clock comparison can measure transport
-overhead (finding 7).
-
----
-
-## Author
-
-Bejaoui Bechir
-Doctoral demo project — 2026
+MITRE ATT&CK technique IDs were verified live against attack.mitre.org.
+Note that **TA0005 has been renamed from "Defense Evasion" to "Stealth"**,
+and a new tactic **TA0112 "Defense Impairment"** has been added — which is
+why `T1078 Valid Accounts` reports its tactic as `Stealth` in the output
+above rather than the name most references still use.
