@@ -328,6 +328,12 @@ class ForensicsResult(BaseModel):
     # machine is an incident, two is a breach.
     lateral_movement: bool = False
 
+    # Deliberately SEPARATE from lateral_movement. One source touching many
+    # hosts is scanning or password spraying. One identity authenticating
+    # successfully on many hosts is an intruder moving. Conflating them makes
+    # every scanned network look breached.
+    horizontal_spread: bool = False
+
     # How far along the kill-chain the attacker has reached.
     attack_stage: AttackStage = AttackStage.UNDETERMINED
 

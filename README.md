@@ -467,8 +467,8 @@ soc-triage-langgraph/
 - [x] Step 14B — Transport overhead and reproducibility measured in isolation
 
 ### Remaining
-- [ ] Step 15 — Forensics agent (timeline, lateral movement)
-- [ ] Step 16 — Reporter agent (the incident report)
+- [x] Step 15 — Forensics tools: host recovery, SQLite history, movement detection
+- [ ] Step 16 — Forensics as a third A2A agent
 - [ ] Step 17 — The full graph: conditional edges, checkpoints, human-in-the-loop
 - [ ] Step 18 — Streamlit demonstration interface (the five visual layers)
 - [ ] Step 19 — Automated test suite

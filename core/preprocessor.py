@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -223,6 +224,44 @@ def load_raw_records(path: Path = DATASET_FILE) -> list[dict]:
 # NORMALISING INTO Alert OBJECTS
 # =============================================================================
 
+# Syslog lines start "Mon DD HH:MM:SS hostname process[pid]: message".
+# Reading the pattern piece by piece:
+#   ^[A-Z][a-z]{2}   a three-letter month, e.g. Mar
+#   \s+\d{1,2}       the day
+#   \s+\d{2}:\d{2}:\d{2}   the clock time
+#   \s+(\S+)\s       <- the hostname we want, captured in group 1
+SYSLOG_HOST = re.compile(r"^[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+(\S+)\s")
+
+# Values that LOOK like a host name but carry no information. The published
+# dataset anonymises agent.name to "xxx", so treating it as a real host
+# would make every machine appear to be the same machine.
+PLACEHOLDER_HOSTS = {"xxx", "unknown", "unknown-host", "-", ""}
+
+
+def _host_from_syslog(full_log: Any) -> str | None:
+    """Recover the host name from a syslog-format log line.
+
+    Why this matters: agent.name is anonymised in this dataset, but the raw
+    log line keeps the real host. Without it, lateral-movement detection has
+    nothing to compare, because every host is called "xxx".
+
+    Web access logs (nginx, Apache) have no host field, so they return None.
+    """
+    if not isinstance(full_log, str):
+        return None
+    match = SYSLOG_HOST.match(full_log)
+    return match.group(1) if match else None
+
+
+def _clean_host(value: Any) -> str | None:
+    """Return a usable host name, or None if it is a placeholder."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    return None if text.lower() in PLACEHOLDER_HOSTS else text
+
+
+
 
 def _dig(raw: dict, *candidates: str, default: Any = None) -> Any:
     """Return the first value found among several dotted-path candidates."""
@@ -237,6 +276,7 @@ def _dig(raw: dict, *candidates: str, default: Any = None) -> Any:
     return default
 
 
+
 def _as_int(value: Any, default: int = 0) -> int:
     """Turn a value into a whole number, or use the default if impossible.
 
@@ -247,6 +287,26 @@ def _as_int(value: Any, default: int = 0) -> int:
         return int(str(value).strip())
     except (TypeError, ValueError):
         return default
+
+def _resolve_host(raw: dict) -> str:
+    """Find the best available host name, treating placeholders as missing.
+
+    Priority order, best evidence first:
+      1. the host from a nested active-response alert (real, explicit)
+      2. agent.name, if it is not the "xxx" placeholder
+      3. the host parsed out of the syslog line
+      4. give up honestly
+    """
+    full_log = _dig(raw, "_trigger_full_log", "full_log", "log", "message")
+    candidates = (
+        _clean_host(raw.get("_trigger_host")),
+        _clean_host(_dig(raw, "agent.name", "agent_name", "host")),
+        _clean_host(_host_from_syslog(full_log)),
+    )
+    for candidate in candidates:
+        if candidate:
+            return candidate
+    return "unknown-host"
 
 
 def normalize_wazuh_alert(raw: dict, fallback_id: str | None = None) -> Alert:
@@ -269,10 +329,7 @@ def normalize_wazuh_alert(raw: dict, fallback_id: str | None = None) -> Alert:
                  default="(no description)")
         ),
         # Prefer the REAL host name recovered from the nested alert.
-        agent_name=str(
-            _dig(raw, "_trigger_host", "agent.name", "agent_name", "host",
-                 default="unknown-host")
-        ),
+        agent_name=_resolve_host(raw),
         agent_id=str(_dig(raw, "agent.id", "agent_id", default="000")),
         # Prefer the REAL attacker IP recovered from the nested alert.
         src_ip=_dig(raw, "_trigger_srcip", "data.srcip", "srcip", "src_ip",

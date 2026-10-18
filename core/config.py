@@ -91,6 +91,10 @@ INTEL_TIMEOUT_S = float(os.getenv("SOC_INTEL_TIMEOUT", "10"))
 # Where answers are remembered, so we never ask the same question twice.
 INTEL_CACHE_FILE = DATA_DIR / "intel_cache.json"
 
+# The alert history, as a queryable database. The forensics agent asks it
+# "what else happened around this time, and on which hosts?"
+HISTORY_DB = DATA_DIR / "soc_history.db"
+
 # =============================================================================
 # THE LANGUAGE MODEL
 # =============================================================================
