@@ -618,6 +618,36 @@ are wrong:
 
 Scripts: `graph.py` (`make_serializer`), `test_graph.py`
 
+### Finding 20 — the interface can contradict the system that feeds it
+
+The first build of the demonstration interface displayed each agent's
+headline number as a Streamlit `metric` delta. Streamlit renders a delta as
+a coloured arrow, and an upward green arrow is universally read as "this
+improved".
+
+The forensics column therefore showed **`+ 4 success(es)`** in green — four
+successful authentications by an intruder, the single worst number on the
+screen — about two inches above a red **ESCALATE TO TIER 2** banner
+reporting the same event. The hunter's indicator count was coloured the
+same way.
+
+Every value was correct. The decision was correct. The presentation of
+them was not, and a viewer scanning the page rather than reading it would
+have taken the opposite meaning from the one the system reached.
+
+This is the same class of fault as finding 14, one layer further out: there
+a faithful model narrated flawed evidence; here a correct system was
+rendered by a component that attached a meaning of its own. Both were found
+by looking at the output as a reader would, not by testing that the values
+were right — they were right in both cases.
+
+The headline values are now plain metrics with no delta, and every count
+sits in an uncoloured caption. Colour in the interface is reserved for the
+three places that genuinely carry a verdict: the escalation banner, the
+override warning, and the event kinds in the audit trail.
+
+Script: `app.py`
+
 ---
 
 ## Withdrawn claims

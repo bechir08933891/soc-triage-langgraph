@@ -23,6 +23,13 @@ THREE STREAMLIT FACTS THAT SHAPE THIS FILE:
      by one asyncio.run(...) call. That is safe here because Streamlit's
      script thread has no running event loop of its own.
 
+ONE RULE ABOUT COLOUR, from finding 20: colour in this interface is
+reserved for the three places that genuinely carry a verdict - the
+escalation banner, the override warning, and the event kinds in the audit
+trail. Counts and scores are rendered in plain, uncoloured captions. An
+earlier build showed "+ 4 success(es)" as a green upward delta, two inches
+above a red ESCALATE banner reporting the same event.
+
 Run it:
     streamlit run app.py
 
@@ -53,6 +60,7 @@ st.set_page_config(page_title="SOC Triage Agent", page_icon="🛡️",
 
 # One character and one colour per event kind, so a 40-line trail stays
 # readable at a glance and a jury member can follow it from across a room.
+# This is one of the three places colour is allowed to mean something.
 KIND_ICON = {
     "node_start": "▶", "node_end": "■", "tool_call": "·", "llm_call": "~",
     "a2a_call": "@", "a2a_task": " ", "interrupt": "!", "resume": "+",
@@ -282,23 +290,32 @@ if state:
 
     # Three columns, deliberately equal. The layout makes the point that no
     # agent outranks another: the decision is the union of their signals.
+    #
+    # NO `delta` ARGUMENT ANYWHERE (finding 20). Streamlit renders a delta as
+    # a coloured arrow, and an up-arrow is universally "this improved". Four
+    # successful authentications by an intruder is the worst number on this
+    # screen, and showing it as a green +4 contradicts the red ESCALATE
+    # banner directly below. Counts go in captions, which carry no colour
+    # and make no claim.
     one, two, three = st.columns(3)
     with one:
         st.markdown("**triage** · rules, one alert")
         if triage:
-            st.metric(triage.attack_type.value, triage.severity.value,
-                      f"score {triage.score}/100")
-            st.caption("would escalate" if triage.escalate_to_tier2
+            st.metric("Severity", triage.severity.value)
+            st.caption(f"{triage.attack_type.value} · score "
+                       f"{triage.score}/100 · confidence "
+                       f"{triage.confidence:.0%}")
+            st.caption("**would escalate**" if triage.escalate_to_tier2
                        else "would auto-close")
         else:
             st.warning("no result")
     with two:
         st.markdown("**hunter** · intel + MITRE")
         if hunt:
-            st.metric(hunt.worst_verdict.value,
-                      f"{hunt.threat_score}/100",
-                      f"{len(hunt.iocs)} indicator(s)")
-            st.caption(f"{len(hunt.techniques)} ATT&CK technique(s)")
+            st.metric("Worst verdict", hunt.worst_verdict.value)
+            st.caption(f"threat score {hunt.threat_score}/100 · "
+                       f"{len(hunt.iocs)} indicator(s) · "
+                       f"{len(hunt.techniques)} ATT&CK technique(s)")
         else:
             # Skipped by route_after_triage when the alert has no source IP.
             st.warning("skipped or no result")
@@ -307,11 +324,13 @@ if state:
         if forensics:
             pattern = ("lateral movement" if forensics.lateral_movement
                        else "horizontal spread"
-                       if forensics.horizontal_spread else "no pattern")
-            st.metric(forensics.attack_stage.value, pattern,
-                      f"{forensics.actor_successes} success(es)")
+                       if forensics.horizontal_spread else "no multi-host pattern")
+            st.metric("Attack stage", forensics.attack_stage.value)
             own = sum(1 for e in forensics.timeline if e.same_actor)
-            st.caption(f"{own}/{len(forensics.timeline)} events are this actor")
+            st.caption(f"{pattern} · {forensics.actor_successes} successful "
+                       f"authentication(s)")
+            st.caption(f"{own}/{len(forensics.timeline)} events in the window "
+                       f"are this actor")
         else:
             st.warning("no result")
 
@@ -358,9 +377,16 @@ if state:
         with st.expander(
                 f"Timeline — {len(forensics.timeline)} events, {own} this actor",
                 expanded=True):
-            st.caption("`>>` the alert under investigation · "
-                       "`~` a different actor, here by coincidence of timing")
-            st.code("\n".join(e.headline()[:100] for e in forensics.timeline))
+            # The legend goes INSIDE the code block, not in a caption. In a
+            # caption those markers pass through Markdown on the way to the
+            # screen; inside a code block they render exactly as the timeline
+            # rows do, which is the whole point of a legend.
+            legend = (">> the alert under investigation\n"
+                      " ~ a different actor, here by coincidence of timing\n"
+                      + "-" * 62)
+            st.code(legend + "\n"
+                    + "\n".join(e.headline()[:100]
+                                for e in forensics.timeline))
             st.write(forensics.analysis)
 
 

@@ -17,6 +17,14 @@ Three safeguards keep these from ever being mistaken for evidence:
 
 The IP addresses are from RFC 5737 (203.0.113.0/24 and 198.51.100.0/24),
 which exist solely for documentation and belong to nobody.
+
+A side effect worth knowing about: Python's `ipaddress` module classifies
+those ranges as PRIVATE, so the hunter reports them as "Internal address;
+no external reputation applies". That is not a mistake in the scenario - it
+is what lateral movement actually looks like. An attacker who landed on
+web-01 and then moved to db-01 and file-01 is travelling from INSIDE, and
+an internal source with no external reputation is exactly the evidence a
+real analyst would see. The scenario is more realistic for it, not less.
 """
 
 from __future__ import annotations
