@@ -4,39 +4,28 @@ tools/reporter.py
 Assemble the findings of the other agents into one incident report, and
 decide escalation.
 
-TWO RULES THIS FILE EXISTS TO ENFORCE, both learned by measuring a mistake.
+THREE RULES THIS FILE ENFORCES, all three learned by measuring a mistake.
 
 RULE 1 (finding 15) - THE DECISION IS A UNION, NOT A VOTE.
-
-    triage, seeing one alert    : NormalActivity / Info -> auto-close
-    forensics, seeing the window: LateralMovement       -> escalate
-
-  Averaging them loses the intrusion. Letting triage decide loses it too:
-  triage auto-closed all five alerts of a confirmed incident. So the
-  decision is the union of the signals, and when the agents disagree the
-  report SAYS SO - the quiet agent is usually right about the single alert
-  and wrong about the set.
+  Triage auto-closed all five alerts of a confirmed intrusion while
+  forensics flagged all five. Averaging loses it; letting triage decide
+  loses it. So the decision is the union of the signals, and when the
+  agents disagree the report SAYS SO.
 
 RULE 2 (finding 19) - REPUTATION IS NOT IMPACT.
+  The first gate escalated 567 of 738 alerts (76.8%) because 561 carried a
+  source address the corpus had seen more than fifty times. Signals are now
+  split by what they can do ALONE: TRIGGERING escalates by itself,
+  CORROBORATING reaches the report but opens no ticket. Reputation is
+  corroborating, and regains triggering force only together with a recorded
+  successful authentication.
 
-  The first version of this gate escalated 567 of 738 alerts (76.8%),
-  because 561 of them carried a source address the corpus had seen more
-  than fifty times. That verdict is correct and useless on its own: a
-  known-malicious host knocking on a door is the internet. So signals are
-  split by what they can do ALONE:
-
-    TRIGGERING     escalates by itself
-    CORROBORATING  reaches the report, but does not open a ticket
-
-  Reputation is corroborating. It regains triggering force only together
-  with a recorded successful authentication by that actor, which is the
-  difference between an attempt and an intrusion.
-
-The language model writes the executive summary and nothing else. It is
-structurally unable to change the decision: `recommend_escalation` runs
-before the model is contacted, and `ReportSummary` has no field for a
-verdict. Verified identical across a working model, an injected
-LLMUnavailable, and an injected KeyError.
+RULE 3 (finding 21) - NO SIGNAL MAY DEPEND ON THE LANGUAGE MODEL.
+  The hunter's threat_score was a triggering signal at >= 70. That score
+  comes from the model whenever one is available, and the evaluation found
+  31 alerts with identical evidence scored anywhere from 30 to 72. The
+  signal is gone. Every report ends "No verdict in this report was produced
+  by a language model", and that sentence now has no exceptions.
 """
 
 from __future__ import annotations
@@ -62,7 +51,21 @@ from core.models import Alert
 # THE POLICY - every threshold and every choice in one place
 # =============================================================================
 
-# A hunter threat score at or above this escalates on its own.
+# The threshold the hunter's threat score WOULD have to cross to matter.
+#
+# THE GATE NO LONGER USES IT AS A TRIGGERING SIGNAL (finding 21). The
+# hunter's threat_score comes from the language model whenever one is
+# available, and the evaluation found 31 alerts with identical evidence
+# receiving 11 different scores from 30 to 72 - with 70 and 72 among them.
+# Both of the only two decisions the model ever changed sat inside that one
+# group, so they were variance, not judgement.
+#
+# Leaving the signal in place would have made the escalation decision
+# model-dependent, which contradicts the guarantee printed at the foot of
+# every report. The constant is kept because `evaluate.py` measures against
+# it, and because a corpus containing genuinely high-severity alerts should
+# reinstate the signal - driven by the DETERMINISTIC score, carried
+# separately from the model's.
 THREAT_SCORE_ESCALATE = 70
 
 # Which policy the system actually uses. The alternatives are kept callable
@@ -106,6 +109,10 @@ def recommend_escalation(triage: TriageResult | None,
       TRIGGERING     each one is sufficient on its own
       CORROBORATING  supporting evidence; not sufficient alone
 
+    EVERY signal below is a function of rules, tools or database queries.
+    None of them can be moved by a language model - that is rule 3, and it
+    is the reason the threat-score branch was removed.
+
     `overridden_triage` is the number that matters most. It is True when the
     system escalates something triage would have closed - which is the
     entire justification for having more than one agent.
@@ -116,8 +123,6 @@ def recommend_escalation(triage: TriageResult | None,
     # --- TRIGGERING: evidence of severity, progression, or success --------
     if triage and triage.escalate_to_tier2:
         triggering.append(f"triage: {triage.severity.value} severity")
-    if hunt and hunt.threat_score >= THREAT_SCORE_ESCALATE:
-        triggering.append(f"hunter: threat score {hunt.threat_score}/100")
     if forensics and forensics.lateral_movement:
         triggering.append("forensics: lateral movement")
     if forensics and forensics.attack_stage in LATE_STAGES:
@@ -153,7 +158,8 @@ def recommend_escalation(triage: TriageResult | None,
         raise ValueError(f"unknown policy {policy!r}")
 
     # If nothing fired, say WHY it was safe to close, rather than closing in
-    # silence. Three different reasons, and they are not interchangeable.
+    # silence. Four branches, so `suppressed` is never None when an alert is
+    # closed: "closed, and here is why" must hold for every closed alert.
     suppressed = None
     if not signals and forensics and \
             forensics.attack_stage is AttackStage.NOT_APPLICABLE:
@@ -163,9 +169,6 @@ def recommend_escalation(triage: TriageResult | None,
     elif not signals and corroborating:
         suppressed = "reputation alone, with no evidence of impact"
     elif not signals:
-        # A fourth branch so `suppressed` is never None when nothing fired.
-        # "Closed, and here is why" must hold for EVERY closed alert, even
-        # when the reason is simply that no agent found anything.
         suppressed = "no triggering signal from any agent"
 
     escalate = bool(signals)
@@ -188,10 +191,6 @@ def agreement_rows(triage, hunt, forensics) -> list[tuple[str, str, str]]:
     An agent that did not answer gets NO row. An empty row would read as
     "it looked and found nothing", which is a different statement from
     "it never ran".
-
-    The hunter's column says "corroborating" rather than "escalate" when it
-    found a malicious indicator without a success, because that is precisely
-    what the gate does with it.
     """
     rows = []
     if triage:
@@ -199,9 +198,10 @@ def agreement_rows(triage, hunt, forensics) -> list[tuple[str, str, str]]:
                      f"{triage.attack_type.value} / {triage.severity.value}",
                      "escalate" if triage.escalate_to_tier2 else "auto-close"))
     if hunt:
-        if hunt.threat_score >= THREAT_SCORE_ESCALATE:
-            verdict = "escalate"
-        elif hunt.worst_verdict is Verdict.MALICIOUS:
+        # The threat score is REPORTED but never escalates on its own
+        # (finding 21): it comes from the language model, and the model
+        # scored identical evidence anywhere from 30 to 72.
+        if hunt.worst_verdict is Verdict.MALICIOUS:
             verdict = "corroborating"
         else:
             verdict = "no signal"
@@ -445,7 +445,9 @@ def build_markdown(alert, triage, hunt, forensics, decision, rows,
                              for t in hunt.techniques])
             lines.append("")
         lines += [f"**Hypothesis.** {hunt.hypothesis}", "",
-                  f"**Threat score.** {hunt.threat_score}/100", ""]
+                  f"**Threat score.** {hunt.threat_score}/100 — written by the "
+                  f"language model, and used nowhere in the decision "
+                  f"(finding 21).", ""]
 
     if forensics:
         own = sum(1 for e in forensics.timeline if e.same_actor)
@@ -476,7 +478,7 @@ def build_markdown(alert, triage, hunt, forensics, decision, rows,
               "| attack type, severity, escalation signals | deterministic rules |",
               "| indicator verdicts, MITRE techniques | tools and external sources |",
               "| timeline, actor split, attack stage, successes | database queries and rules |",
-              "| the prose in this report | " + summary_source + " |",
+              "| the threat score and the prose | " + summary_source + " |",
               "",
               "No verdict in this report was produced by a language model.",
               ""]

@@ -647,6 +647,102 @@ three places that genuinely carry a verdict: the escalation banner, the
 override warning, and the event kinds in the audit trail.
 
 Script: `app.py`
+### Finding 21 — the model's score is a lottery with a stable ticket count
+
+The hunter has two scorers over identical evidence: `deterministic_synthesis()`
+(rules) and the language model, both reading the same printable fact block.
+A stratified sample of 68 alerts across all 18 evidence profiles was scored
+by both, twice, with the same seed and therefore the same 68 alerts.
+
+| | run 1 | run 2 |
+|---|---|---|
+| exact agreement | 6/68 (8.8%) | 12/68 (17.6%) |
+| mean absolute deviation | 11.0 points | 10.1 points |
+| mean signed deviation | −5.8 | −3.9 |
+| highest score, rules | 68/100 | 68/100 |
+| highest score, model | 72/100 | 70/100 |
+| decisions changed | 2/68 | 2/68 |
+| which alerts | `1741135462`, `1741133370` | `1741135935`, `1741133026` |
+
+The two runs changed the same **number** of decisions and a completely
+**disjoint set** of them. The per-run summary statistics are themselves
+unstable: exact agreement doubled between runs on identical inputs.
+
+Part 5 shows the mechanism. Thirty-one sampled alerts share one evidence
+profile — `BruteForce / Info / malicious / technique mapped` — and received
+scores of `[30, 35, 38, 40, 45, 55, 60, 62, 65, 70, 72]` in run 1 and
+`[30, 35, 45, 50, 55, 60, 65, 70]` in run 2. The gate threshold of 70 sits
+inside that spread, so whichever alerts happen to land at the top of the
+distribution cross it. Both flipped alerts in both runs are
+`Host Blocked by firewall-drop Active Response` — a containment that had
+already succeeded, scored at 70–72 by the model against 50 by the rules.
+The model saw "malicious" in the fact block and pushed the number up:
+finding 19's error, committed by the model.
+
+**This had a consequence for the system's central claim.** Every report ends
+"No verdict in this report was produced by a language model." That sentence
+had one exception: `hunter: threat score >= 70` was a triggering signal in
+the escalation gate, and `threat_score` comes from the model whenever one is
+available. Demonstrated directly: identical evidence, two scores the model
+actually produced for it, and the gate flips.
+
+| model's score | gate |
+|---|---|
+| 30 | auto-close |
+| 72 | escalate |
+
+The signal was removed. The deterministic scorer never exceeded 68 anywhere
+in the corpus, so the signal only ever fired on variance, and removing it
+left the corpus escalation count (6/738) and the labelled-incident detection
+(5/5) unchanged. A corpus containing genuinely high-severity alerts should
+reinstate it, driven by the deterministic score carried separately from the
+model's.
+
+**The counterpart result is positive.** Part 6 checked all 68 hypotheses for
+claims the fact block does not license — asserting "malicious" with no such
+verdict, naming an address absent from the prompt, or claiming lateral
+movement the hunter cannot see. Violations: **0 of 68**. Constrained to a
+printed fact block with explicit rules, the model's prose was faithful every
+time.
+
+The two halves together are the architecture, measured rather than asserted:
+the model's language is reliable and its numbers are not, so it writes
+sentences and never produces a value anything acts on.
+
+Scripts: `evaluate.py`, `tools/reporter.py`
+
+### Finding 22 — a self-test written by the check's author tests the author's blind spots
+
+Part 6 of the first evaluation reported **8 unsupported claims in 68
+hypotheses**. The number was wrong. Three examples it counted:
+
+- "The available facts provide **no indication of malicious** activity"
+- "the source is **not** rated **malicious**"
+- an address the model quoted from the prompt's own `RAW LOG` section
+
+The first two are the *opposite* of the claim the check exists to catch, and
+the third is the model reading the evidence it was given. The detector was
+naive substring matching with no negation handling, and it checked addresses
+against the indicator list rather than the whole prompt.
+
+The evaluation already had a guard against exactly this: Part 0 refuses to
+report Part 6 unless the detector demonstrably fires on violations and stays
+silent on compliant prose. **Part 0 passed.** All five of its cases were
+written by the same person who wrote the check, and not one contained a
+negation — so it proved the detector worked on the cases its author had
+thought of.
+
+The cases the first version failed are now in the self-test, taken verbatim
+from real model output, and Part 0 runs nine cases rather than five. With
+the corrected detector the true violation count is **0 of 68**.
+
+The methodological point generalises beyond this project: a self-test is
+evidence about the author's imagination until it has been confronted with
+real output. Every check in this repository that reports a count was
+subsequently run against production data and had its false positives
+examined — this is the one where that step caught something.
+
+Script: `evaluate.py` (Part 0)
 
 ---
 
