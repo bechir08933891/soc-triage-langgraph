@@ -1,5 +1,7 @@
 # 🛡️ Agent de tri SOC — Édition LangGraph
 
+**Bejaoui Bechir** · projet de démonstration doctoral
+
 **[🇬🇧 Read in English](README.md)**
 
 Un système de tri d'alertes pour **Centre des Opérations de Sécurité (SOC)**,

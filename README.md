@@ -1,5 +1,7 @@
 # 🛡️ SOC Triage Agent — LangGraph Edition
 
+**Bejaoui Bechir** · doctoral demonstration project
+
 **[🇫🇷 Lire en français](README.fr.md)**
 
 A five-agent Security Operations Centre triage system. Four software agents
