@@ -18,6 +18,38 @@ Construit et mesuré sur un corpus réel de **738 alertes Wazuh**.
 
 ---
 
+## ▶️ Lancer la démonstration
+
+**Fenêtre 1 — l'hôte des agents.** À laisser ouverte :
+
+```cmd
+cd C:\Users\RONIN\Desktop\soc-triage-langgraph
+.venv\Scripts\activate
+python run_agents.py
+```
+
+**Fenêtre 2 — l'exécution :**
+
+```cmd
+cd C:\Users\RONIN\Desktop\soc-triage-langgraph
+.venv\Scripts\activate
+set SOC_A2A_MODE=1
+python run_graph.py demo
+```
+
+**Fenêtre 3 — l'interface :**
+
+```cmd
+cd C:\Users\RONIN\Desktop\soc-triage-langgraph
+.venv\Scripts\activate
+set SOC_A2A_MODE=1
+streamlit run app.py
+```
+
+Installation complète, clés et dépannage : [Démarrage rapide](#démarrage-rapide).
+
+---
+
 ## Sommaire
 
 | | |
@@ -462,35 +494,95 @@ phrases.
 
 ## Démarrage rapide
 
-### 1. Prérequis
+### Le chemin le plus court qui fonctionne
 
-Python 3.13, Windows / macOS / Linux. Aucun GPU. Fonctionne confortablement
-avec 8 Go de RAM.
+Quatre commandes, aucune clé, aucun serveur. C'est la version à utiliser
+trente secondes avant une démonstration.
 
 ```cmd
+git clone https://github.com/VOTRE-NOM/soc-triage-langgraph.git
+cd soc-triage-langgraph
+pip install -r requirements.txt
+python run_graph.py demo
+```
+
+`demo` est un incident de mouvement latéral synthétique et étiqueté, intégré
+au projet : cela fonctionne donc **avant** le téléchargement du jeu de données
+et **sans** aucune clé d'API. Vous devez voir les cinq agents rendre compte
+l'un après l'autre, la barrière décider **ESCALADE**, et l'exécution se mettre
+en pause à la barrière humaine.
+
+Tout ce qui suit est l'installation complète.
+
+### 1 · Récupérer le code et un environnement propre
+
+```cmd
+git clone https://github.com/VOTRE-NOM/soc-triage-langgraph.git
+cd soc-triage-langgraph
 python -m venv .venv
-.venv\Scripts\activate
+```
+
+Puis l'activer :
+
+| système | commande |
+|---|---|
+| **Windows, cmd** | `.venv\Scripts\activate` |
+| Windows, PowerShell | `.venv\Scripts\Activate.ps1` |
+| macOS / Linux | `source .venv/bin/activate` |
+
+```cmd
 pip install -r requirements.txt
 ```
 
-### 2. Le jeu de données
+**Ce que vous devez voir :** votre invite commence désormais par `(.venv)`, et
+`python --version` indique 3.13.x. Aucun GPU n'est utilisé ; le projet entier
+tourne confortablement avec 8 Go de RAM.
 
-Le corpus n'est **pas** dans ce dépôt. Téléchargez-le :
+### 2 · Récupérer le jeu de données
+
+Le corpus de 738 enregistrements n'est **pas** dans ce dépôt — il se
+télécharge.
 
 ```cmd
 python download_data.py
 ```
 
-Cela récupère `wazuh_formatted_alerts.json` (2,96 Mo, 738 enregistrements)
-dans `data/`, qui est ignoré par git. Pour le récupérer manuellement, il
-s'agit du jeu de données d'alertes Wazuh disponible sur
-<https://huggingface.co/datasets/kholil-lil/wazuh-alerts> — placez le fichier
-dans `data/`.
+**Ce que vous devez voir :** `wazuh_formatted_alerts.json`, 2,96 Mo,
+apparaissant dans `data/`. Ce dossier est ignoré par git : il ne quitte donc
+jamais votre machine.
 
-### 3. Les clés (toutes facultatives)
+Pour le récupérer manuellement, il s'agit du jeu de données d'alertes Wazuh
+disponible sur <https://huggingface.co/datasets/kholil-lil/wazuh-alerts> —
+placez le fichier dans `data/` sous ce nom exact.
 
-Créez `.env` à la racine du projet. **Pas de guillemets, pas d'espaces autour
-du `=`.**
+> Si vous sautez cette étape, la démonstration fonctionne quand même, mais
+> tout ce qui touche aux alertes réelles (`run_graph.py <id-alerte>`,
+> `test_gate.py`, `evaluate.py`) vous dira que le corpus est absent au lieu
+> d'échouer de façon obscure.
+
+### 3 · La base de données d'historique des alertes
+
+L'agent forensique a besoin d'un historique interrogeable pour regarder
+autour d'une alerte. Vous ne la construisez **pas** à la main : elle se
+construit d'elle-même à partir du corpus la première fois qu'on la sollicite,
+dans `data/soc_history.db` (également ignoré par git).
+
+**Ce que vous devez voir** dans la trace d'audit, l'une de trois issues
+honnêtes :
+
+| message | signification |
+|---|---|
+| `history ready` | la base existe déjà et contient des lignes |
+| `history built: 738 alerts` | elle vient d'être créée à partir du corpus |
+| `history EMPTY: <raison>` | elle n'a pas pu être construite, et la raison est dite |
+
+Le troisième cas est un échec énoncé, non silencieux. La cause habituelle est
+l'étape 2 non effectuée.
+
+### 4 · Les clés — toutes les trois sont facultatives
+
+Créez un fichier nommé `.env` à la racine du projet. **Pas de guillemets, pas
+d'espaces autour du `=`.**
 
 ```dotenv
 OPENAI_API_KEY=sk-...
@@ -498,66 +590,106 @@ ABUSEIPDB_API_KEY=...
 VIRUSTOTAL_API_KEY=...
 ```
 
-`.env` est ignoré par git et ne doit jamais être versionné. Sans aucune clé,
-le système fonctionne avec des solutions de repli déterministes et **le
-signale dans la trace d'audit**. Pour désactiver tout appel sortant :
-`SOC_OFFLINE_MODE=1`.
+| clé | ce que vous perdez sans elle |
+|---|---|
+| `OPENAI_API_KEY` | la prose narrative. Chaque verdict, score et décision d'escalade reste inchangé — c'est toute la conception (voir le constat 21). |
+| `ABUSEIPDB_API_KEY` | la réputation externe. La réputation interne, issue du corpus, fonctionne toujours. |
+| `VIRUSTOTAL_API_KEY` | un deuxième avis sur la réputation. |
 
-### 4. Exécution
-
-Démarrez l'hôte des agents dans une fenêtre :
+Sans aucune clé, le système fonctionne sur des solutions de repli
+déterministes et **le signale dans la trace d'audit** au lieu de faire
+semblant. Pour bloquer purement et simplement tout appel sortant :
 
 ```cmd
-python run_agents.py
+set SOC_OFFLINE_MODE=1
 ```
 
-Dans une autre fenêtre, exécutez le système sur une alerte :
+`.env` est ignoré par git et ne doit jamais être versionné. Aucune clé n'est
+jamais affichée où que ce soit — les tests signalent uniquement `present` ou
+`NOT SET`.
+
+### 5 · Exécuter le système
+
+Choisissez d'abord un transport. C'est le réglage qui mérite d'être compris :
+
+```cmd
+set SOC_A2A_MODE=0    :: les quatre agents sont appelés comme des fonctions, dans un seul processus
+set SOC_A2A_MODE=1    :: les quatre agents communiquent via A2A, et un serveur doit tourner
+```
+
+**Avec `SOC_A2A_MODE=0`** — une seule fenêtre, rien d'autre n'est nécessaire :
 
 ```cmd
 python run_graph.py demo
 ```
 
-`demo` est un incident de mouvement latéral synthétique et étiqueté. Pour une
-alerte réelle du corpus, passez son identifiant :
+**Avec `SOC_A2A_MODE=1`** — deux fenêtres. Première fenêtre, à laisser
+ouverte :
+
+```cmd
+python run_agents.py
+```
+
+**Ce que vous devez voir :** quatre agents enregistrés sur `127.0.0.1:9001`,
+chacun à son propre chemin, et le processus qui reste ouvert. Deuxième
+fenêtre :
+
+```cmd
+set SOC_A2A_MODE=1
+python run_graph.py demo
+```
+
+Dans les deux cas, pour exécuter une alerte réelle du corpus au lieu de la
+démonstration, passez son identifiant :
 
 ```cmd
 python run_graph.py 1741133026.4897
 ```
 
-### 5. L'interface
+Les deux transports produisent des verdicts identiques — c'est le
+**constat 16**, et c'est ce qui fait de l'affirmation A2A une mesure et non
+une décoration.
+
+### 6 · L'interface
 
 ```cmd
 pip install "streamlit>=1.66"
 streamlit run app.py
 ```
 
-Le bouton **Check the agents** de la barre latérale confirme que l'hôte est
-joignable — utile trente secondes avant une démonstration.
+Elle s'ouvre sur <http://localhost:8501>. Le bouton **Check the agents** de la
+barre latérale confirme que l'hôte A2A est joignable — à presser avant une
+démonstration plutôt que pendant.
 
-### 6. Les tests
+### 7 · Les tests
 
 ```cmd
 pytest
 ```
 
-**152 tests, environ une seconde**, sans réseau, sans appel au modèle et sans
-dépense. `tests/conftest.py` fixe `SOC_OFFLINE_MODE=1` avant tout import.
+**Ce que vous devez voir :** `152 passed` en environ une seconde, sans
+réseau, sans appel au modèle et sans rien dépenser.
 
 | commande | ce qu'elle exécute |
 |---|---|
-| `pytest` | 142 tests ; les 10 tests A2A sont ignorés sans serveur |
-| `pytest -m a2a` | la surface A2A (nécessite `run_agents.py`) |
-| `pytest -k reputation` | uniquement le constat 19 |
+| `pytest` | 142 tests ; les 10 tests A2A sont ignorés quand aucun serveur ne tourne |
+| `pytest -m a2a` | la surface A2A — nécessite `run_agents.py` dans une autre fenêtre |
+| `pytest -k reputation` | uniquement la barrière d'escalade du constat 19 |
+| `pytest -v` | une ligne par test, pour lire ce qui est couvert |
 
-### 7. Le commutateur de transport
+`tests/conftest.py` fixe `SOC_OFFLINE_MODE=1` avant tout import : la suite ne
+peut donc pas atteindre le réseau, même par accident.
 
-```cmd
-set SOC_A2A_MODE=1    :: les agents communiquent via A2A (nécessite run_agents.py)
-set SOC_A2A_MODE=0    :: les mêmes fonctions, appelées dans ce processus
-```
+### En cas de problème
 
-Les deux produisent des résultats identiques. C'est ce qui fait de
-l'affirmation A2A une **mesure** et non une décoration.
+| ce que vous voyez | ce que cela signifie | solution |
+|---|---|---|
+| `ModuleNotFoundError: No module named 'core'` | vous n'êtes pas à la racine du projet, ou le venv n'est pas actif | faites `cd` dans le dossier, réactivez, puis relancez |
+| `corpus not found` / `history EMPTY` | le jeu de données n'a jamais été téléchargé | `python download_data.py` |
+| l'exécution se bloque, puis une erreur de connexion | `SOC_A2A_MODE=1` mais aucun serveur | lancez `python run_agents.py` dans une autre fenêtre, ou mettez `SOC_A2A_MODE=0` |
+| `address already in use` sur 9001 | un `run_agents.py` précédent tourne encore | fermez cette fenêtre, ou identifiez le processus sur le port 9001 et arrêtez-le |
+| `LLM unavailable` dans la trace d'audit | pas de `OPENAI_API_KEY`, ou elle est erronée | ce n'est pas un échec — les verdicts sont inchangés, seule la prose manque |
+| aucune clé n'est lue depuis `.env` | des guillemets ou des espaces autour du `=` | écrivez `OPENAI_API_KEY=sk-...` sans rien d'autre sur la ligne |
 
 ---
 

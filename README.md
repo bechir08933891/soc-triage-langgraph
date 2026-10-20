@@ -16,6 +16,38 @@ Built and measured against a real Wazuh alert corpus of **738 records**.
 
 ---
 
+## ▶️ Run the demo
+
+**Window 1 — the agent host.** Leave it open:
+
+```cmd
+cd C:\Users\RONIN\Desktop\soc-triage-langgraph
+.venv\Scripts\activate
+python run_agents.py
+```
+
+**Window 2 — the run:**
+
+```cmd
+cd C:\Users\RONIN\Desktop\soc-triage-langgraph
+.venv\Scripts\activate
+set SOC_A2A_MODE=1
+python run_graph.py demo
+```
+
+**Window 3 — the interface:**
+
+```cmd
+cd C:\Users\RONIN\Desktop\soc-triage-langgraph
+.venv\Scripts\activate
+set SOC_A2A_MODE=1
+streamlit run app.py
+```
+
+Full setup, keys and troubleshooting: [Quick start](#quick-start).
+
+---
+
 ## Table of contents
 
 | | |
@@ -444,32 +476,89 @@ number anyone acts on; the variable layer produces sentences.
 
 ## Quick start
 
-### 1. Requirements
+### The shortest path that works
 
-Python 3.13, Windows / macOS / Linux. No GPU. Runs comfortably on 8 GB RAM.
+Four commands, no keys, no server. This is the version to use thirty seconds
+before a demonstration.
 
 ```cmd
+git clone https://github.com/YOUR-USERNAME/soc-triage-langgraph.git
+cd soc-triage-langgraph
+pip install -r requirements.txt
+python run_graph.py demo
+```
+
+`demo` is a labelled synthetic lateral-movement incident built into the
+project, so this works **before** the dataset is downloaded and **without**
+any API key. You should see the five agents report in turn, the gate decide
+**ESCALATE**, and the run pause at the human gate.
+
+Everything below is the full setup.
+
+### 1 · Get the code and a clean environment
+
+```cmd
+git clone https://github.com/YOUR-USERNAME/soc-triage-langgraph.git
+cd soc-triage-langgraph
 python -m venv .venv
-.venv\Scripts\activate
+```
+
+Then activate it:
+
+| system | command |
+|---|---|
+| **Windows, cmd** | `.venv\Scripts\activate` |
+| Windows, PowerShell | `.venv\Scripts\Activate.ps1` |
+| macOS / Linux | `source .venv/bin/activate` |
+
+```cmd
 pip install -r requirements.txt
 ```
 
-### 2. The dataset
+**What you should see:** your prompt now starts with `(.venv)`, and
+`python --version` reports 3.13.x. No GPU is used; the whole project runs
+comfortably in 8 GB of RAM.
 
-The corpus is **not** in this repository. Download it:
+### 2 · Get the dataset
+
+The 738-record corpus is **not** in this repository — it is downloaded.
 
 ```cmd
 python download_data.py
 ```
 
-That fetches `wazuh_formatted_alerts.json` (2.96 MB, 738 records) into
-`data/`, which is git-ignored. To fetch it by hand instead, it is the Wazuh
-alert dataset at <https://huggingface.co/datasets/kholil-lil/wazuh-alerts> —
-place the file in `data/`.
+**What you should see:** `wazuh_formatted_alerts.json`, 2.96 MB, appearing in
+`data/`. That folder is git-ignored, so it never leaves your machine.
 
-### 3. Keys (all optional)
+To fetch it by hand instead, it is the Wazuh alert dataset at
+<https://huggingface.co/datasets/kholil-lil/wazuh-alerts> — put the file in
+`data/` under that exact name.
 
-Create `.env` in the project root. **No quotes, no spaces around `=`.**
+> Skip this step and the demo still runs, but anything touching real alerts
+> (`run_graph.py <alert-id>`, `test_gate.py`, `evaluate.py`) will tell you the
+> corpus is missing rather than failing obscurely.
+
+### 3 · The alert history database
+
+The forensics agent needs a searchable history to look around an alert. You
+do **not** build it by hand — it builds itself from the corpus the first time
+something asks for it, into `data/soc_history.db` (also git-ignored).
+
+**What you should see** in the audit trail, one of three honest outcomes:
+
+| message | meaning |
+|---|---|
+| `history ready` | the database already exists and has rows |
+| `history built: 738 alerts` | it was just created from the corpus |
+| `history EMPTY: <reason>` | it could not be built, and it says why |
+
+The third case is a stated failure, not a silent one. The usual reason is
+step 2 having been skipped.
+
+### 4 · Keys — all three are optional
+
+Create a file called `.env` in the project root. **No quotes, no spaces
+around the `=`.**
 
 ```dotenv
 OPENAI_API_KEY=sk-...
@@ -477,65 +566,102 @@ ABUSEIPDB_API_KEY=...
 VIRUSTOTAL_API_KEY=...
 ```
 
-`.env` is git-ignored and must never be committed. Without any key the
-system runs with deterministic fallbacks and **says so in the audit trail**.
-To disable every outbound call: `SOC_OFFLINE_MODE=1`.
+| key | what you lose without it |
+|---|---|
+| `OPENAI_API_KEY` | the narrative prose. Every verdict, score and escalation decision is unaffected — that is the whole design (see finding 21). |
+| `ABUSEIPDB_API_KEY` | third-party reputation. First-party reputation from the corpus still works. |
+| `VIRUSTOTAL_API_KEY` | a second opinion on reputation. |
 
-### 4. Run it
-
-Start the agent host in one window:
+Without any key the system runs on deterministic fallbacks and **says so in
+the audit trail** rather than pretending. To block every outbound call
+outright:
 
 ```cmd
-python run_agents.py
+set SOC_OFFLINE_MODE=1
 ```
 
-In another window, run the system on one alert:
+`.env` is git-ignored and must never be committed. No key is ever printed
+anywhere — the tests report only `present` or `NOT SET`.
+
+### 5 · Run it
+
+Choose a transport first. This is the one setting worth understanding:
+
+```cmd
+set SOC_A2A_MODE=0    :: the four agents are called as functions, in one process
+set SOC_A2A_MODE=1    :: the four agents talk over A2A, and need a server running
+```
+
+**With `SOC_A2A_MODE=0`** — one window, nothing else needed:
 
 ```cmd
 python run_graph.py demo
 ```
 
-`demo` is a labelled synthetic lateral-movement incident. For a real alert
-from the corpus, pass its id:
+**With `SOC_A2A_MODE=1`** — two windows. First window, leave it running:
+
+```cmd
+python run_agents.py
+```
+
+**What you should see:** four agents registered on `127.0.0.1:9001`, each at
+its own path, and the process staying open. Second window:
+
+```cmd
+set SOC_A2A_MODE=1
+python run_graph.py demo
+```
+
+Either way, to run a real alert from the corpus instead of the demo, pass its
+id:
 
 ```cmd
 python run_graph.py 1741133026.4897
 ```
 
-### 5. The interface
+Both transports produce identical verdicts — that is finding 16, and it is
+what makes the A2A claim a measurement rather than a decoration.
+
+### 6 · The interface
 
 ```cmd
 pip install "streamlit>=1.66"
 streamlit run app.py
 ```
 
-The sidebar's **Check the agents** button confirms the host is reachable —
-useful thirty seconds before a demonstration.
+It opens at <http://localhost:8501>. The sidebar's **Check the agents**
+button confirms the A2A host is reachable — worth pressing before a
+demonstration rather than during one.
 
-### 6. The tests
+### 7 · The tests
 
 ```cmd
 pytest
 ```
 
-**152 tests, about one second**, with no network, no model calls and no
-money spent. `tests/conftest.py` sets `SOC_OFFLINE_MODE=1` before any import.
+**What you should see:** `152 passed` in roughly one second, with no network,
+no model calls and nothing spent.
 
 | command | what it runs |
 |---|---|
-| `pytest` | 142 tests; the 10 A2A ones skip with no server |
-| `pytest -m a2a` | the A2A surface (needs `run_agents.py`) |
-| `pytest -k reputation` | just finding 19 |
+| `pytest` | 142 tests; the 10 A2A ones skip when no server is running |
+| `pytest -m a2a` | the A2A surface — needs `run_agents.py` in another window |
+| `pytest -k reputation` | just the escalation gate of finding 19 |
+| `pytest -v` | one line per test, if you want to read what is covered |
 
-### 7. The transport switch
+`tests/conftest.py` sets `SOC_OFFLINE_MODE=1` before any import, so the suite
+cannot reach the network even by accident.
 
-```cmd
-set SOC_A2A_MODE=1    :: agents talk over A2A (needs run_agents.py)
-set SOC_A2A_MODE=0    :: the same functions, called in this process
-```
+### If something goes wrong
 
-Both produce identical results. That is what makes the A2A claim a
-**measurement** rather than a decoration.
+| what you see | what it means | fix |
+|---|---|---|
+| `ModuleNotFoundError: No module named 'core'` | you are not in the project root, or the venv is not active | `cd` into the folder, re-activate, then run again |
+| `corpus not found` / `history EMPTY` | the dataset was never downloaded | `python download_data.py` |
+| the run hangs, then a connection error | `SOC_A2A_MODE=1` but no server | start `python run_agents.py` in another window, or set `SOC_A2A_MODE=0` |
+| `address already in use` on 9001 | a previous `run_agents.py` is still alive | close that window, or find the process on port 9001 and stop it |
+| `LLM unavailable` in the audit trail | no `OPENAI_API_KEY`, or it is wrong | this is not a failure — verdicts are unaffected, only the prose is missing |
+| no key is read from `.env` | quotes or spaces around the `=` | write `OPENAI_API_KEY=sk-...` with nothing else on the line |
 
 ---
 
