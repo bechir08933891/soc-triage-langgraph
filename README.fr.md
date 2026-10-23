@@ -498,13 +498,14 @@ phrases.
 
 ### Le chemin le plus court qui fonctionne
 
-Quatre commandes, aucune clé, aucun serveur. C'est la version à utiliser
+Aucune clé, aucun serveur, une seule fenêtre. C'est la version à utiliser
 trente secondes avant une démonstration.
 
 ```cmd
-git clone https://github.com/VOTRE-NOM/soc-triage-langgraph.git
+git clone https://github.com/bechir08933891/soc-triage-langgraph.git
 cd soc-triage-langgraph
 pip install -r requirements.txt
+set SOC_A2A_MODE=0
 python run_graph.py demo
 ```
 
@@ -514,12 +515,18 @@ et **sans** aucune clé d'API. Vous devez voir les cinq agents rendre compte
 l'un après l'autre, la barrière décider **ESCALADE**, et l'exécution se mettre
 en pause à la barrière humaine.
 
+> **`set SOC_A2A_MODE=0` n'est pas facultatif ici.** `core/config.py` donne à
+> `A2A_MODE` la valeur par défaut **vrai** : sans cette ligne, l'exécution
+> cherche un serveur A2A qui ne tourne pas et échoue sur une erreur de
+> connexion. Ne l'omettez que si `python run_agents.py` est déjà ouvert dans
+> une autre fenêtre.
+
 Tout ce qui suit est l'installation complète.
 
 ### 1 · Récupérer le code et un environnement propre
 
 ```cmd
-git clone https://github.com/VOTRE-NOM/soc-triage-langgraph.git
+git clone https://github.com/bechir08933891/soc-triage-langgraph.git
 cd soc-triage-langgraph
 python -m venv .venv
 ```
@@ -618,6 +625,13 @@ Choisissez d'abord un transport. C'est le réglage qui mérite d'être compris :
 set SOC_A2A_MODE=0    :: les quatre agents sont appelés comme des fonctions, dans un seul processus
 set SOC_A2A_MODE=1    :: les quatre agents communiquent via A2A, et un serveur doit tourner
 ```
+
+**La valeur par défaut est `1`.** `core/config.py` lit
+`A2A_MODE = _flag("SOC_A2A_MODE", default=True)` : une fenêtre `cmd` neuve
+qui ne définit jamais la variable s'exécute donc en mode A2A et attend un
+serveur. Définissez-la explicitement plutôt que de compter sur la valeur par
+défaut, et rappelez-vous que `set` ne s'applique qu'à la fenêtre où vous
+l'avez tapé.
 
 **Avec `SOC_A2A_MODE=0`** — une seule fenêtre, rien d'autre n'est nécessaire :
 
@@ -1086,3 +1100,20 @@ attack.mitre.org. Notez que **TA0005 a été renommée de « Defense Evasion » 
 - [x] Étape 21 — évaluation : le score du modèle n'apporte aucun signal utile
 - [ ] Facultatif — recherche d'alertes similaires, mesurée ou documentée comme abandonnée
 - [ ] Facultatif — mettre en cache les Cartes d'Agent, remesurer le constat 7
+
+---
+
+## Auteur
+
+**Bejaoui Bechir**
+
+Projet de démonstration doctoral : un système de tri SOC à cinq agents, dont
+quatre communiquent via le protocole A2A, orchestrés par LangGraph, et où un
+humain conserve la décision finale — mesuré sur un corpus réel de 738 alertes
+Wazuh.
+
+Chaque constat de ce README s'appuie sur un script présent dans ce dépôt, et
+les erreurs sont documentées au même titre que les résultats. Trois
+affirmations ont été retirées après mesure, et le README dit lesquelles.
+
+Dépôt : <https://github.com/bechir08933891/soc-triage-langgraph>

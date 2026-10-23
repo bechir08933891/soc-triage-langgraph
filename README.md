@@ -480,13 +480,14 @@ number anyone acts on; the variable layer produces sentences.
 
 ### The shortest path that works
 
-Four commands, no keys, no server. This is the version to use thirty seconds
+No keys, no server, one window. This is the version to use thirty seconds
 before a demonstration.
 
 ```cmd
-git clone https://github.com/YOUR-USERNAME/soc-triage-langgraph.git
+git clone https://github.com/bechir08933891/soc-triage-langgraph.git
 cd soc-triage-langgraph
 pip install -r requirements.txt
+set SOC_A2A_MODE=0
 python run_graph.py demo
 ```
 
@@ -495,12 +496,17 @@ project, so this works **before** the dataset is downloaded and **without**
 any API key. You should see the five agents report in turn, the gate decide
 **ESCALATE**, and the run pause at the human gate.
 
+> **`set SOC_A2A_MODE=0` is not optional here.** `core/config.py` defaults
+> `A2A_MODE` to **true**, so without that line the run looks for an A2A
+> server that is not running and fails on a connection error. Leave it out
+> only when `python run_agents.py` is already open in another window.
+
 Everything below is the full setup.
 
 ### 1 · Get the code and a clean environment
 
 ```cmd
-git clone https://github.com/YOUR-USERNAME/soc-triage-langgraph.git
+git clone https://github.com/bechir08933891/soc-triage-langgraph.git
 cd soc-triage-langgraph
 python -m venv .venv
 ```
@@ -593,6 +599,12 @@ Choose a transport first. This is the one setting worth understanding:
 set SOC_A2A_MODE=0    :: the four agents are called as functions, in one process
 set SOC_A2A_MODE=1    :: the four agents talk over A2A, and need a server running
 ```
+
+**The default is `1`.** `core/config.py` reads
+`A2A_MODE = _flag("SOC_A2A_MODE", default=True)`, so a fresh `cmd` window
+that never sets the variable runs in A2A mode and expects a server. Set it
+explicitly rather than relying on the default, and remember that `set` only
+applies to the window you typed it in.
 
 **With `SOC_A2A_MODE=0`** — one window, nothing else needed:
 
@@ -1033,3 +1045,19 @@ most references still use.
 - [x] Step 21 — evaluation: the model's score adds no usable signal
 - [ ] Optional — similar-alert search, measured or documented as dropped
 - [ ] Optional — cache resolved Agent Cards, re-measure finding 7
+
+---
+
+## Author
+
+**Bejaoui Bechir**
+
+Doctoral demonstration project: a five-agent SOC triage system in which four
+agents speak the A2A protocol, LangGraph orchestrates them, and a human holds
+the final decision — measured against a real Wazuh corpus of 738 alerts.
+
+Every finding in this README is backed by a script in this repository, and the
+mistakes are documented alongside the results. Three claims were withdrawn
+after measurement, and the README says which.
+
+Repository: <https://github.com/bechir08933891/soc-triage-langgraph>
